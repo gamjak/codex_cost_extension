@@ -50,24 +50,28 @@ interface CostAccumulator {
   hasPricing: boolean;
 }
 
-function isVsCodeSession(session: ParsedSession): boolean {
-  if (session.source) {
-    return session.source.toLowerCase() === 'vscode';
-  }
-
-  if (session.originator) {
-    return session.originator.toLowerCase().includes('vscode');
-  }
-
-  return true;
-}
-
 function getSessionLabel(cwd: string | undefined, sessionId: string): string {
   if (!cwd) {
     return sessionId;
   }
 
   return path.basename(cwd) || cwd;
+}
+
+export function resolveModelPricing(model: string | undefined, pricingByModel: PricingByModel): ModelPricing | undefined {
+  if (!model) {
+    return undefined;
+  }
+
+  if (pricingByModel[model]) {
+    return pricingByModel[model];
+  }
+
+  const matchingFamily = Object.keys(pricingByModel)
+    .filter((candidate) => model.startsWith(`${candidate}-`))
+    .sort((left, right) => right.length - left.length)[0];
+
+  return matchingFamily ? pricingByModel[matchingFamily] : undefined;
 }
 
 function estimateCost(snapshot: TokenUsageSnapshot, pricing: ModelPricing | undefined): number | undefined {
@@ -254,7 +258,7 @@ export function buildUsageReport(
   let budgetHasPricedUsage = false;
   let budgetHasPricingGaps = false;
 
-  for (const session of sessions.filter(isVsCodeSession)) {
+  for (const session of sessions) {
     for (const delta of buildSessionUsageDeltas(session)) {
       const deltaTimestampMs = new Date(delta.timestamp).getTime();
       if (!Number.isFinite(deltaTimestampMs) || deltaTimestampMs > nowMs) {
@@ -263,8 +267,8 @@ export function buildUsageReport(
 
       const matchesScope = options.scope === 'all' || matchesWorkspaceRoots(delta.cwd, options.workspaceRoots);
       const matchesFilterWindow = (filterStartAtMs === undefined || deltaTimestampMs >= filterStartAtMs) && matchesScope;
-      const matchesBudgetWindow = deltaTimestampMs >= budgetStartAtMs;
-      const pricing = delta.model ? pricingByModel[delta.model] : undefined;
+      const matchesBudgetWindow = deltaTimestampMs >= budgetStartAtMs && matchesScope;
+      const pricing = resolveModelPricing(delta.model, pricingByModel);
 
       if (matchesFilterWindow || matchesBudgetWindow) {
         if (!delta.model) {

@@ -32,11 +32,15 @@ async function walkDirectory(directoryPath: string, output: string[]): Promise<v
 }
 
 export async function findSessionFiles(logRoots: readonly string[]): Promise<string[]> {
-  const files: string[] = [];
+  const files = new Set<string>();
 
   for (const logRoot of logRoots) {
-    await walkDirectory(logRoot, files);
+    const discoveredFiles: string[] = [];
+    await walkDirectory(path.resolve(logRoot), discoveredFiles);
+    for (const filePath of discoveredFiles) {
+      files.add(path.resolve(filePath));
+    }
   }
 
-  return files.sort((left, right) => left.localeCompare(right));
+  return Array.from(files).sort((left, right) => left.localeCompare(right));
 }

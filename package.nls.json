@@ -1,0 +1,9 @@
+{
+  "extension.displayName": "Codex Cost",
+  "extension.description": "Estimate Codex token usage cost from local session logs.",
+  "view.usage": "Usage & Cost",
+  "command.refresh": "Refresh Codex Cost View",
+  "command.workspace": "Show Workspace Sessions",
+  "command.all": "Show All Sessions",
+  "command.settings": "Open Codex Cost Settings"
+}

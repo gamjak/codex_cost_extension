@@ -9,7 +9,6 @@ export interface ExtensionConfig {
   logRoots: string[];
   pricingByModel: PricingByModel;
   scopeDefault: ViewScope;
-  workspaceMatchMode: 'startsWith';
   autoRefreshSeconds: number;
   filterStartDate: string;
   budgetSettings: BudgetSettings;
@@ -41,9 +40,11 @@ function normalizePricing(value: unknown): PricingByModel {
     }
 
     const record = candidate as Record<string, unknown>;
-    const inputPer1M = typeof record.inputPer1M === 'number' ? record.inputPer1M : undefined;
-    const cachedInputPer1M = typeof record.cachedInputPer1M === 'number' ? record.cachedInputPer1M : undefined;
-    const outputPer1M = typeof record.outputPer1M === 'number' ? record.outputPer1M : undefined;
+    const validPrice = (candidateValue: unknown): candidateValue is number =>
+      typeof candidateValue === 'number' && Number.isFinite(candidateValue) && candidateValue >= 0;
+    const inputPer1M = validPrice(record.inputPer1M) ? record.inputPer1M : undefined;
+    const cachedInputPer1M = validPrice(record.cachedInputPer1M) ? record.cachedInputPer1M : undefined;
+    const outputPer1M = validPrice(record.outputPer1M) ? record.outputPer1M : undefined;
 
     if (inputPer1M === undefined || cachedInputPer1M === undefined || outputPer1M === undefined) {
       continue;
@@ -64,7 +65,7 @@ function normalizeAutoRefreshSeconds(value: unknown): number {
     return 60;
   }
 
-  return Math.max(0, Math.floor(value));
+  return Math.min(86_400, Math.max(0, Math.floor(value)));
 }
 
 function normalizePositiveNumber(value: unknown): number {
@@ -98,9 +99,12 @@ function normalizeBoolean(value: unknown, fallback: boolean): boolean {
 export function readExtensionConfig(): ExtensionConfig {
   const configuration = vscode.workspace.getConfiguration('codexCost');
 
-  const rawRoots = configuration.get<string[]>('logRoots', ['%USERPROFILE%/.codex/sessions']);
-  const scopeDefault = configuration.get<ViewScope>('scopeDefault', 'workspace');
-  const workspaceMatchMode = configuration.get<'startsWith'>('workspaceMatchMode', 'startsWith');
+  const configuredRoots = configuration.get<unknown>('logRoots');
+  const rawRoots = Array.isArray(configuredRoots)
+    ? configuredRoots.filter((root): root is string => typeof root === 'string')
+    : ['%USERPROFILE%/.codex/sessions'];
+  const rawScopeDefault = configuration.get<string>('scopeDefault', 'workspace');
+  const scopeDefault: ViewScope = rawScopeDefault === 'all' ? 'all' : 'workspace';
   const rawPricing = configuration.get<Record<string, unknown>>('pricing.models', {});
   const autoRefreshSeconds = normalizeAutoRefreshSeconds(configuration.get<number>('autoRefreshSeconds', 60));
   const filterStartDate = normalizeFilterStartDate(configuration.get<string>('filter.startDate', ''));
@@ -118,10 +122,9 @@ export function readExtensionConfig(): ExtensionConfig {
   const statusBarBudgetPeriod = normalizeBudgetPeriod(configuration.get<string>('statusBar.budgetPeriod', 'month'));
 
   return {
-    logRoots: rawRoots.map(resolveHomePath),
+    logRoots: Array.from(new Set(rawRoots.filter((root) => root.trim()).map(resolveHomePath))),
     pricingByModel: normalizePricing(rawPricing),
     scopeDefault,
-    workspaceMatchMode,
     autoRefreshSeconds,
     filterStartDate,
     budgetSettings,

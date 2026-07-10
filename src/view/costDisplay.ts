@@ -1,10 +1,24 @@
-const tokenFormatter = new Intl.NumberFormat('de-DE');
-const costFormatter = new Intl.NumberFormat('de-DE', {
-  style: 'currency',
-  currency: 'USD',
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2
-});
+let tokenFormatter: Intl.NumberFormat;
+let costFormatter: Intl.NumberFormat;
+
+export function configureDisplay(locale = 'de-DE'): void {
+  let normalizedLocale = locale;
+  try {
+    Intl.getCanonicalLocales(locale);
+  } catch {
+    normalizedLocale = 'en-US';
+  }
+
+  tokenFormatter = new Intl.NumberFormat(normalizedLocale);
+  costFormatter = new Intl.NumberFormat(normalizedLocale, {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+}
+
+configureDisplay();
 
 interface FormatCostOptions {
   approximate?: boolean;

@@ -1,0 +1,9 @@
+{
+  "extension.displayName": "Codex-Kosten",
+  "extension.description": "Schätzt Kosten der Codex-Token-Nutzung anhand lokaler Sitzungsprotokolle.",
+  "view.usage": "Nutzung & Kosten",
+  "command.refresh": "Codex-Kosten aktualisieren",
+  "command.workspace": "Workspace-Sitzungen anzeigen",
+  "command.all": "Alle Sitzungen anzeigen",
+  "command.settings": "Codex-Kosteneinstellungen öffnen"
+}

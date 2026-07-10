@@ -1,10 +1,11 @@
 import * as vscode from 'vscode';
 
 import { readExtensionConfig } from '../config';
-import { parseSessionFile } from '../data/jsonlSessionParser';
-import { findSessionFiles } from '../data/sessionScanner';
+import { SessionRepository } from '../data/sessionRepository';
 import { buildUsageReport } from '../domain/sessionAggregator';
-import type { ParsedSession, UsageReport, ViewScope } from '../domain/types';
+import type { UsageReport, ViewScope } from '../domain/types';
+import { RefreshCoordinator } from '../refreshCoordinator';
+import { configureDisplay } from './costDisplay';
 import { buildStatusBarEntries } from './statusBarPresentation';
 import { buildUsageTree, type TreeNodeData } from './treePresentation';
 
@@ -64,6 +65,9 @@ export class CodexCostTreeProvider implements vscode.TreeDataProvider<TreeNode> 
     vscode.StatusBarAlignment.Left,
     108
   );
+  private readonly output = vscode.window.createOutputChannel('Codex Cost');
+  private readonly sessionRepository = new SessionRepository();
+  private readonly refreshCoordinator = new RefreshCoordinator(() => this.performRefresh());
   private nodes: TreeNode[] = [
     leafNode('loading', 'Loading Codex session data...', undefined, undefined, 'loading~spin')
   ];
@@ -79,7 +83,7 @@ export class CodexCostTreeProvider implements vscode.TreeDataProvider<TreeNode> 
     this.workspaceStatusItem.command = 'codexCost.refresh';
     this.budgetStatusItem.command = 'codexCost.refresh';
 
-    context.subscriptions.push(this.sessionStatusItem, this.workspaceStatusItem, this.budgetStatusItem);
+    context.subscriptions.push(this.sessionStatusItem, this.workspaceStatusItem, this.budgetStatusItem, this.output);
   }
 
   getTreeItem(element: TreeNode): vscode.TreeItem {
@@ -111,42 +115,44 @@ export class CodexCostTreeProvider implements vscode.TreeDataProvider<TreeNode> 
   }
 
   async refresh(): Promise<void> {
+    return this.refreshCoordinator.request();
+  }
+
+  private async performRefresh(): Promise<void> {
     const configuration = readExtensionConfig();
+    configureDisplay(vscode.env.language);
     const workspaceRoots = (vscode.workspace.workspaceFolders ?? []).map((folder) => folder.uri.fsPath);
-    this.lastRefreshAt = new Date();
+    const refreshedAt = new Date();
+    this.lastRefreshAt = refreshedAt;
 
     try {
-      const sessionFiles = await findSessionFiles(configuration.logRoots);
-      const sessions: ParsedSession[] = [];
-      for (const filePath of sessionFiles) {
-        const session = await parseSessionFile(filePath);
-        if (session) {
-          sessions.push(session);
-        }
-      }
+      const loaded = await this.sessionRepository.load(configuration.logRoots);
 
-      const workspaceReport = buildUsageReport(sessions, configuration.pricingByModel, {
+      const workspaceReport = buildUsageReport(loaded.sessions, configuration.pricingByModel, {
         scope: 'workspace',
         workspaceRoots,
         filterStartDateInput: configuration.filterStartDate,
         budgetSettings: configuration.budgetSettings,
         budgetPeriod: configuration.statusBarBudgetPeriod,
-        now: this.lastRefreshAt
+        now: refreshedAt
       });
-      const report = buildUsageReport(sessions, configuration.pricingByModel, {
+      const report = buildUsageReport(loaded.sessions, configuration.pricingByModel, {
         scope: this.scope,
         workspaceRoots,
         filterStartDateInput: configuration.filterStartDate,
         budgetSettings: configuration.budgetSettings,
         budgetPeriod: configuration.statusBarBudgetPeriod,
-        now: this.lastRefreshAt
+        now: refreshedAt
       });
-      const displayReport = sessionFiles.length === 0
+      const displayReport = loaded.filesCount === 0
         ? {
             ...report,
-            warnings: [...report.warnings, 'No Codex logs found under configured log roots.']
+            warnings: [...report.warnings, ...loaded.warnings, 'No Codex logs found under configured log roots.']
           }
-        : report;
+        : {
+            ...report,
+            warnings: [...report.warnings, ...loaded.warnings]
+          };
 
       this.updateStatusBar(workspaceReport, configuration);
       this.nodes = buildUsageTree(this.scope, displayReport, {
@@ -155,6 +161,7 @@ export class CodexCostTreeProvider implements vscode.TreeDataProvider<TreeNode> 
       }).map(toVscodeNode);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
+      this.output.appendLine(`[${new Date().toISOString()}] Refresh failed: ${message}`);
       this.updateStatusBar(emptyUsageReport(configuration), configuration);
       this.nodes = [
         leafNode('error', 'Failed to load Codex logs', message, message, 'error')

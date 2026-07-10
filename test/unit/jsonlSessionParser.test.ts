@@ -2,7 +2,7 @@ import * as path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { parseSessionFile } from '../../src/data/jsonlSessionParser';
+import { parseSessionFile, parseSessionFileWithDiagnostics } from '../../src/data/jsonlSessionParser';
 
 describe('parseSessionFile', () => {
   it('keeps cumulative snapshot history alongside the latest model/cwd data', async () => {
@@ -76,5 +76,13 @@ describe('parseSessionFile', () => {
         }
       }
     ]);
+  });
+
+  it('reports malformed lines without rejecting the complete file', async () => {
+    const fixturePath = path.resolve('test/fixtures/malformed-session.jsonl');
+    const result = await parseSessionFileWithDiagnostics(fixturePath);
+
+    expect(result.session?.sessionId).toBe('session-malformed');
+    expect(result.diagnostics.malformedLines).toBe(1);
   });
 });

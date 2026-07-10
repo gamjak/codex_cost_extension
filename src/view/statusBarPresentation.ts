@@ -110,7 +110,7 @@ function buildBudgetText(report: UsageReport): string {
 function buildBudgetTooltip(report: UsageReport, autoRefreshSeconds: number): string {
   const label = budgetPeriodLabel(report.budget.period);
   const lines = [
-    `${label} budget window`,
+    `${label} workspace budget window`,
     report.budget.budgetAmount
       ? `Budget: ${formatCostUsd(report.budget.budgetAmount)}`
       : 'Budget: not configured',

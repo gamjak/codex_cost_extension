@@ -44,11 +44,14 @@ function diffTokenUsage(current: TokenUsageSnapshot, previous: TokenUsageSnapsho
     };
   }
 
+  const delta = (currentValue: number, previousValue: number): number =>
+    Math.max(currentValue >= previousValue ? currentValue - previousValue : currentValue, 0);
+
   return {
-    inputTokens: Math.max(current.inputTokens - previous.inputTokens, 0),
-    cachedInputTokens: Math.max(current.cachedInputTokens - previous.cachedInputTokens, 0),
-    outputTokens: Math.max(current.outputTokens - previous.outputTokens, 0),
-    totalTokens: Math.max(current.totalTokens - previous.totalTokens, 0)
+    inputTokens: delta(current.inputTokens, previous.inputTokens),
+    cachedInputTokens: delta(current.cachedInputTokens, previous.cachedInputTokens),
+    outputTokens: delta(current.outputTokens, previous.outputTokens),
+    totalTokens: delta(current.totalTokens, previous.totalTokens)
   };
 }
 
