@@ -51,4 +51,18 @@ describe('BudgetNotificationController', () => {
 
     expect(messages).toEqual([]);
   });
+
+  it('restores persisted notification keys after an extension restart', () => {
+    const messages: string[] = [];
+    let persisted: readonly string[] = [];
+    const first = new BudgetNotificationController((message) => messages.push(message), (keys) => {
+      persisted = keys;
+    });
+    first.notify(status(), new Date(2026, 6, 10, 12));
+
+    const second = new BudgetNotificationController((message) => messages.push(message), undefined, persisted);
+    second.notify(status(), new Date(2026, 6, 10, 13));
+
+    expect(messages).toHaveLength(1);
+  });
 });

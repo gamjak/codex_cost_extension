@@ -138,6 +138,7 @@ export class CodexCostTreeProvider implements vscode.TreeDataProvider<TreeNode> 
       const workspaceReport = buildUsageReport(loaded.sessions, configuration.pricingByModel, {
         scope: 'workspace',
         workspaceRoots,
+        sessionSources: configuration.sessionSources,
         filterStartDateInput: configuration.filterStartDate,
         budgetSettings: configuration.budgetSettings,
         budgetPeriod: configuration.statusBarBudgetPeriod,
@@ -146,6 +147,7 @@ export class CodexCostTreeProvider implements vscode.TreeDataProvider<TreeNode> 
       const report = buildUsageReport(loaded.sessions, configuration.pricingByModel, {
         scope: this.scope,
         workspaceRoots,
+        sessionSources: configuration.sessionSources,
         filterStartDateInput: configuration.filterStartDate,
         budgetSettings: configuration.budgetSettings,
         budgetPeriod: configuration.statusBarBudgetPeriod,
@@ -213,6 +215,7 @@ function emptyUsageReport(configuration: ReturnType<typeof readExtensionConfig>)
   return buildUsageReport([], configuration.pricingByModel, {
     scope: 'workspace',
     workspaceRoots: [],
+    sessionSources: configuration.sessionSources,
     filterStartDateInput: configuration.filterStartDate,
     budgetSettings: configuration.budgetSettings,
     budgetPeriod: configuration.statusBarBudgetPeriod,

@@ -7,6 +7,7 @@ import { findSessionFiles } from './sessionScanner';
 
 interface CachedSession {
   mtimeMs: number;
+  ctimeMs: number;
   size: number;
   session: ParsedSession | null;
   warnings: string[];
@@ -84,13 +85,14 @@ export class SessionRepository {
       try {
         const stat = await fs.stat(filePath);
         const cached = this.cache.get(filePath);
-        if (cached && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size) {
+        if (cached && cached.mtimeMs === stat.mtimeMs && cached.ctimeMs === stat.ctimeMs && cached.size === stat.size) {
           return cached;
         }
 
         const parsed = await parseSessionFileWithDiagnostics(filePath);
         const entry: CachedSession = {
           mtimeMs: stat.mtimeMs,
+          ctimeMs: stat.ctimeMs,
           size: stat.size,
           session: parsed.session,
           warnings: diagnosticsWarnings(filePath, parsed.diagnostics)
@@ -101,6 +103,7 @@ export class SessionRepository {
         const message = error instanceof Error ? error.message : 'Unknown read error';
         const entry: CachedSession = {
           mtimeMs: -1,
+          ctimeMs: -1,
           size: -1,
           session: null,
           warnings: [`${path.basename(filePath)}: could not be read (${message}).`]

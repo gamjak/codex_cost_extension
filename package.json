@@ -2,7 +2,7 @@
   "name": "codex-cost-extension",
   "displayName": "%extension.displayName%",
   "description": "%extension.description%",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "packageManager": "pnpm@11.7.0",
   "publisher": "gambjako",
   "license": "MIT",
@@ -113,6 +113,14 @@
           },
           "description": "Directories to scan for local Codex session JSONL files."
         },
+        "codexCost.sources.include": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "description": "Optional source filter, for example [\"vscode\", \"cli\"]. Leave empty to include all sources."
+        },
         "codexCost.pricing.models": {
           "type": "object",
           "default": {
@@ -212,7 +220,7 @@
         },
         "codexCost.budget.dayAmount": {
           "type": "number",
-          "default": 25,
+          "default": 0,
           "minimum": 0,
           "description": "Daily budget in USD. This defines the value for the day period. Set to 0 to leave the daily budget unconfigured."
         },
@@ -227,6 +235,11 @@
           "default": 0,
           "minimum": 0,
           "description": "Monthly budget in USD. This defines the value for the month period. Set to 0 to leave the monthly budget unconfigured."
+        },
+        "codexCost.budget.notifications.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show one warning when the selected workspace budget reaches its threshold and one when it is exceeded."
         },
         "codexCost.budget.warningPercent": {
           "type": "number",
@@ -257,7 +270,7 @@
             "week",
             "month"
           ],
-          "default": "day",
+          "default": "month",
           "enumDescriptions": [
             "Show the configured daily budget amount in the status bar.",
             "Show the configured weekly budget amount in the status bar.",

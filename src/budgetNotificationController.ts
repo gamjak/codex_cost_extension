@@ -2,6 +2,8 @@ import type { BudgetStatus } from './domain/types';
 
 type NotificationThreshold = 'warning' | 'exceeded';
 
+export type PersistNotificationKeys = (keys: readonly string[]) => void;
+
 function periodKey(status: BudgetStatus, now: Date): string {
   if (status.period === 'day') {
     return `${status.period}:${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
@@ -22,9 +24,29 @@ function thresholdFor(status: BudgetStatus): NotificationThreshold | undefined {
 }
 
 export class BudgetNotificationController {
-  private readonly notified = new Set<string>();
+  private readonly notified: Set<string>;
 
-  constructor(private readonly notifyUser: (message: string) => void) {}
+  constructor(
+    private readonly notifyUser: (message: string) => void,
+    private readonly persistKeys: PersistNotificationKeys = () => undefined,
+    initialKeys: readonly string[] = [],
+    private readonly locale = 'en-US'
+  ) {
+    this.notified = new Set(initialKeys.slice(-20));
+  }
+
+  private formatMoney(value: number): string {
+    try {
+      return new Intl.NumberFormat(this.locale, {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }).format(value);
+    } catch {
+      return `$${value.toFixed(2)}`;
+    }
+  }
 
   notify(status: BudgetStatus, now: Date): void {
     const threshold = thresholdFor(status);
@@ -33,10 +55,16 @@ export class BudgetNotificationController {
     const key = `${periodKey(status, now)}:${threshold}`;
     if (this.notified.has(key)) return;
     this.notified.add(key);
+    while (this.notified.size > 20) {
+      const oldest = this.notified.values().next().value;
+      if (oldest === undefined) break;
+      this.notified.delete(oldest);
+    }
+    this.persistKeys(Array.from(this.notified));
 
     const period = status.period.charAt(0).toUpperCase() + status.period.slice(1);
-    const spent = `$${status.spentCost.toFixed(2)}`;
-    const budget = `$${status.budgetAmount.toFixed(2)}`;
+    const spent = this.formatMoney(status.spentCost);
+    const budget = this.formatMoney(status.budgetAmount);
     this.notifyUser(threshold === 'warning'
       ? `Codex Cost: ${period} budget reached ${status.warningPercent}% — ${spent} of ${budget}.`
       : `Codex Cost: ${period} budget exceeded — ${spent} of ${budget}.`);

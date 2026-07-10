@@ -217,7 +217,7 @@ The session item should represent:
 
 If no session matches:
 
-- show `Session n/a`
+- show `Latest n/a`
 
 ### Workspace Status Bar Item
 
@@ -306,8 +306,8 @@ The extension should keep separate status bar items rather than combining them i
 
 Session item examples:
 
-- `Session 12,40 $`
-- `Session n/a`
+- `Latest 12,40 $`
+- `Latest n/a`
 
 Workspace item examples:
 

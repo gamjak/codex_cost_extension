@@ -132,7 +132,7 @@ describe('buildUsageTree', () => {
 
     const sessionSection = nodes.find((node) => node.id === 'sessions');
     expect(sessionSection?.children?.[0]).toMatchObject({
-      id: 'session-session-1',
+      id: 'session-session-1-0',
       label: 'Tools',
       description: '0,13 $',
       collapsibleState: 'none'

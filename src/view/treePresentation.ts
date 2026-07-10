@@ -220,9 +220,9 @@ export function buildUsageTree(scope: ViewScope, report: UsageReport, refreshInf
       sectionNode(
         'sessions',
         'Recent sessions',
-        report.sessions.map((session) =>
+        report.sessions.map((session, index) =>
           leafNode(
-            `session-${session.sessionId}`,
+            `session-${session.sessionId}-${index}`,
             session.label,
             formatCostUsd(session.estimatedCost, {
               approximate: !session.hasPricing && session.estimatedCost !== undefined

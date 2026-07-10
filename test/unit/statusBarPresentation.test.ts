@@ -94,7 +94,7 @@ describe('buildStatusBarEntries', () => {
     });
 
     expect(entries.session.visible).toBe(true);
-    expect(entries.session.text).toBe('$(history) Session 12,40 $');
+    expect(entries.session.text).toBe('$(history) Latest 12,40 $');
     expect(entries.workspace.text).toBe('$(folder-opened) Workspace 154,00 $');
     expect(entries.budget.text).toBe('$(dashboard) Month 154,00 $/500,00 $');
     expect(entries.budget.tone).toBe('default');
@@ -113,7 +113,7 @@ describe('buildStatusBarEntries', () => {
       }
     });
 
-    expect(entries.session.text).toBe('$(history) Session n/a');
+    expect(entries.session.text).toBe('$(history) Latest n/a');
     expect(entries.workspace.text).toBe('$(folder-opened) Workspace ~91,00 $');
     expect(entries.budget.text).toBe('$(dashboard) Week ~91,00 $/100,00 $');
     expect(entries.budget.tone).toBe('warning');

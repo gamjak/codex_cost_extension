@@ -8,10 +8,12 @@ import type { BudgetPeriod, BudgetSettings, PricingByModel, StatusBarVisibility,
 export interface ExtensionConfig {
   logRoots: string[];
   pricingByModel: PricingByModel;
+  sessionSources: string[];
   scopeDefault: ViewScope;
   autoRefreshSeconds: number;
   filterStartDate: string;
   budgetSettings: BudgetSettings;
+  budgetNotificationsEnabled: boolean;
   statusBarVisibility: StatusBarVisibility;
   statusBarBudgetPeriod: BudgetPeriod;
 }
@@ -50,7 +52,12 @@ function normalizePricing(value: unknown): PricingByModel {
       continue;
     }
 
-    pricing[model] = {
+    const normalizedModel = model.trim().toLowerCase();
+    if (!normalizedModel) {
+      continue;
+    }
+
+    pricing[normalizedModel] = {
       inputPer1M,
       cachedInputPer1M,
       outputPer1M
@@ -106,6 +113,13 @@ export function readExtensionConfig(): ExtensionConfig {
   const rawScopeDefault = configuration.get<string>('scopeDefault', 'workspace');
   const scopeDefault: ViewScope = rawScopeDefault === 'all' ? 'all' : 'workspace';
   const rawPricing = configuration.get<Record<string, unknown>>('pricing.models', {});
+  const rawSources = configuration.get<unknown>('sources.include');
+  const sessionSources = Array.isArray(rawSources)
+    ? Array.from(new Set(rawSources
+        .filter((source): source is string => typeof source === 'string')
+        .map((source) => source.trim().toLowerCase())
+        .filter(Boolean)))
+    : [];
   const autoRefreshSeconds = normalizeAutoRefreshSeconds(configuration.get<number>('autoRefreshSeconds', 60));
   const filterStartDate = normalizeFilterStartDate(configuration.get<string>('filter.startDate', ''));
   const budgetSettings: BudgetSettings = {
@@ -114,6 +128,10 @@ export function readExtensionConfig(): ExtensionConfig {
     monthAmount: normalizePositiveNumber(configuration.get<number>('budget.monthAmount', 0)),
     warningPercent: normalizeWarningPercent(configuration.get<number>('budget.warningPercent', 80))
   };
+  const budgetNotificationsEnabled = normalizeBoolean(
+    configuration.get<boolean>('budget.notifications.enabled', false),
+    false
+  );
   const statusBarVisibility: StatusBarVisibility = {
     showSession: normalizeBoolean(configuration.get<boolean>('statusBar.showSession', true), true),
     showWorkspace: normalizeBoolean(configuration.get<boolean>('statusBar.showWorkspace', true), true),
@@ -124,10 +142,12 @@ export function readExtensionConfig(): ExtensionConfig {
   return {
     logRoots: Array.from(new Set(rawRoots.filter((root) => root.trim()).map(resolveHomePath))),
     pricingByModel: normalizePricing(rawPricing),
+    sessionSources,
     scopeDefault,
     autoRefreshSeconds,
     filterStartDate,
     budgetSettings,
+    budgetNotificationsEnabled,
     statusBarVisibility,
     statusBarBudgetPeriod
   };

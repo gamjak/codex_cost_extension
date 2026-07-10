@@ -15,7 +15,7 @@ Notify the user when a configured day, week, or month budget reaches its warning
 
 ## Design
 
-Add a small `BudgetNotificationController` with an injected notification callback. It receives the already calculated `BudgetStatus` after each refresh and tracks notified period/threshold keys in memory. The extension activation wires it to `vscode.window.showWarningMessage` and calls it after a successful provider refresh. Refresh failures do not produce budget notifications.
+Add a small `BudgetNotificationController` with injected notification and persistence callbacks. It receives the already calculated workspace `BudgetStatus` after each refresh and persists a bounded list of notified period/threshold keys in `globalState`. The extension activation wires it to `vscode.window.showWarningMessage` and calls it after a successful provider refresh. Refresh failures and incomplete pricing do not produce budget notifications.
 
 The controller is deliberately independent of VS Code so threshold transitions and period resets can be unit-tested without an extension host.
 
@@ -27,6 +27,9 @@ Tests cover:
 - exceeded notification at 100%
 - no duplicate notification on repeated refreshes
 - separate notifications for separate budget periods
+- notifications disabled by default until `codexCost.budget.notifications.enabled` is enabled
+- localized currency formatting and actions to open settings or refresh
+- a local-midnight boundary refresh even when regular auto-refresh is disabled
 - reset when the calendar period changes
 - no notification for unconfigured budgets or unreliable estimates
 
