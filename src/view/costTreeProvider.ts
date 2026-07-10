@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import { readExtensionConfig } from '../config';
 import { SessionRepository } from '../data/sessionRepository';
 import { buildUsageReport } from '../domain/sessionAggregator';
-import type { UsageReport, ViewScope } from '../domain/types';
+import type { BudgetStatus, UsageReport, ViewScope } from '../domain/types';
 import { RefreshCoordinator } from '../refreshCoordinator';
 import { configureDisplay } from './costDisplay';
 import { buildStatusBarEntries } from './statusBarPresentation';
@@ -73,6 +73,8 @@ export class CodexCostTreeProvider implements vscode.TreeDataProvider<TreeNode> 
   ];
   private scope: ViewScope;
   private lastRefreshAt?: Date;
+  private latestBudgetStatus?: BudgetStatus;
+  private lastRefreshSucceeded = false;
 
   readonly onDidChangeTreeData = this.onDidChangeTreeDataEmitter.event;
 
@@ -118,7 +120,12 @@ export class CodexCostTreeProvider implements vscode.TreeDataProvider<TreeNode> 
     return this.refreshCoordinator.request();
   }
 
+  getLatestBudgetStatus(): BudgetStatus | undefined {
+    return this.lastRefreshSucceeded ? this.latestBudgetStatus : undefined;
+  }
+
   private async performRefresh(): Promise<void> {
+    this.lastRefreshSucceeded = false;
     const configuration = readExtensionConfig();
     configureDisplay(vscode.env.language);
     const workspaceRoots = (vscode.workspace.workspaceFolders ?? []).map((folder) => folder.uri.fsPath);
@@ -155,6 +162,8 @@ export class CodexCostTreeProvider implements vscode.TreeDataProvider<TreeNode> 
           };
 
       this.updateStatusBar(workspaceReport, configuration);
+      this.latestBudgetStatus = workspaceReport.budget;
+      this.lastRefreshSucceeded = true;
       this.nodes = buildUsageTree(this.scope, displayReport, {
         autoRefreshSeconds: configuration.autoRefreshSeconds,
         lastRefreshAt: this.lastRefreshAt

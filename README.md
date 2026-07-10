@@ -13,6 +13,7 @@ Codex Cost is a local VS Code extension that estimates Codex usage cost from ses
 - Shows the latest workspace session cost and current workspace cost in the VS Code status bar
 - Can hide older usage with a fixed start date
 - Can track day, week, or month budgets in the VS Code status bar
+- Shows one warning at the configured budget threshold and one when the budget is exceeded
 - Refreshes the sidebar and status bar automatically based on a configurable interval
 - Caches unchanged session files so recurring refreshes only parse new or modified logs
 
@@ -32,7 +33,7 @@ The extension scans:
 
 ## Pricing configuration
 
-The extension ships with built-in default prices for the GPT-5.4 and GPT-5.5 families.
+The extension ships with built-in default prices for the GPT-5.4, GPT-5.5, and GPT-5.6 families, including the `sol`, `terra`, and `luna` variants.
 
 You can override them in VS Code settings:
 
@@ -51,6 +52,7 @@ You can override them in VS Code settings:
 
 Any values you set in `codexCost.pricing.models` override the built-in defaults.
 Model identifiers with dated or deployment suffixes inherit the longest matching configured family. For example, `gpt-5.4-2026-07-10` uses `gpt-5.4` pricing unless an exact override exists.
+Cache-write prices shown by the provider are not applied because Codex session logs currently expose no separate cache-write token count.
 Set `codexCost.autoRefreshSeconds` to `0` to disable automatic refresh. The toolbar refresh action still updates immediately.
 
 ## Filter and budget settings
@@ -84,6 +86,7 @@ You can configure the fixed filter, budgets, and visible status bar items in VS 
   - `day` = today
   - `week` = current week starting on Monday
   - `month` = current month
+- Budget notifications are shown once per threshold and calendar period. They reset automatically when the next day, week, or month begins. Notifications are skipped when pricing gaps prevent a reliable estimate.
 
 ## Local development
 
