@@ -1,0 +1,5 @@
+{"timestamp":"2026-06-01T08:00:00.000Z","type":"session_meta","payload":{"id":"session-workspace","source":"vscode","originator":"codex_vscode","cwd":"C:\\Users\\gambjako\\Repositories\\codex_cost_extension"}}
+{"timestamp":"2026-06-01T08:01:00.000Z","type":"turn_context","payload":{"cwd":"C:\\Users\\gambjako\\Repositories\\codex_cost_extension","model":"gpt-5.4"}}
+{"timestamp":"2026-06-01T08:02:00.000Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":1000,"cached_input_tokens":200,"output_tokens":400,"total_tokens":1400}}}}
+{"timestamp":"2026-06-01T08:03:00.000Z","type":"turn_context","payload":{"cwd":"C:\\Users\\gambjako\\Repositories\\codex_cost_extension\\src","model":"gpt-5.4"}}
+{"timestamp":"2026-06-01T08:04:00.000Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":2500,"cached_input_tokens":700,"output_tokens":900,"total_tokens":3400}}}}

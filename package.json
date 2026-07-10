@@ -1,0 +1,258 @@
+{
+  "name": "codex-cost-extension",
+  "displayName": "Codex Cost",
+  "description": "Estimate Codex token usage cost from local session logs.",
+  "version": "0.2.0",
+  "publisher": "gambjako",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./out/src/extension.js",
+  "activationEvents": [
+    "onStartupFinished",
+    "onView:codexCost.usage",
+    "onCommand:codexCost.refresh",
+    "onCommand:codexCost.setScopeWorkspace",
+    "onCommand:codexCost.setScopeAll",
+    "onCommand:codexCost.openSettings"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "codexCost",
+          "title": "Codex Cost",
+          "icon": "resources/codex-cost.svg"
+        }
+      ]
+    },
+    "views": {
+      "codexCost": [
+        {
+          "id": "codexCost.usage",
+          "name": "Usage & Cost"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "codexCost.refresh",
+        "title": "Refresh Codex Cost View",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "codexCost.setScopeWorkspace",
+        "title": "Show Workspace Sessions",
+        "icon": "$(folder)"
+      },
+      {
+        "command": "codexCost.setScopeAll",
+        "title": "Show All Sessions",
+        "icon": "$(globe)"
+      },
+      {
+        "command": "codexCost.openSettings",
+        "title": "Open Codex Cost Settings",
+        "icon": "$(gear)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "codexCost.refresh",
+          "when": "view == codexCost.usage",
+          "group": "navigation"
+        },
+        {
+          "command": "codexCost.setScopeWorkspace",
+          "when": "view == codexCost.usage",
+          "group": "navigation@1"
+        },
+        {
+          "command": "codexCost.setScopeAll",
+          "when": "view == codexCost.usage",
+          "group": "navigation@2"
+        },
+        {
+          "command": "codexCost.openSettings",
+          "when": "view == codexCost.usage",
+          "group": "navigation@3"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Codex Cost",
+      "properties": {
+        "codexCost.logRoots": {
+          "type": "array",
+          "default": [
+            "%USERPROFILE%/.codex/sessions"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "description": "Directories to scan for local Codex session JSONL files."
+        },
+        "codexCost.pricing.models": {
+          "type": "object",
+          "default": {
+            "gpt-5.4": {
+              "inputPer1M": 2.5,
+              "cachedInputPer1M": 0.25,
+              "outputPer1M": 15
+            },
+            "gpt-5.4-mini": {
+              "inputPer1M": 0.75,
+              "cachedInputPer1M": 0.075,
+              "outputPer1M": 4.5
+            },
+            "gpt-5.4-nano": {
+              "inputPer1M": 0.2,
+              "cachedInputPer1M": 0.02,
+              "outputPer1M": 1.25
+            },
+            "gpt-5.4-pro": {
+              "inputPer1M": 30,
+              "cachedInputPer1M": 30,
+              "outputPer1M": 180
+            },
+            "gpt-5.5": {
+              "inputPer1M": 5,
+              "cachedInputPer1M": 0.5,
+              "outputPer1M": 30
+            },
+            "gpt-5.5-pro": {
+              "inputPer1M": 30,
+              "cachedInputPer1M": 30,
+              "outputPer1M": 180
+            }
+          },
+          "description": "Per-model pricing used for local estimated cost.",
+          "additionalProperties": {
+            "type": "object",
+            "required": [
+              "inputPer1M",
+              "cachedInputPer1M",
+              "outputPer1M"
+            ],
+            "properties": {
+              "inputPer1M": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Price for one million non-cached input tokens."
+              },
+              "cachedInputPer1M": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Price for one million cached input tokens."
+              },
+              "outputPer1M": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Price for one million output tokens."
+              }
+            }
+          }
+        },
+        "codexCost.scopeDefault": {
+          "type": "string",
+          "enum": [
+            "workspace",
+            "all"
+          ],
+          "default": "workspace",
+          "description": "Default scope used when the Codex Cost view opens."
+        },
+        "codexCost.workspaceMatchMode": {
+          "type": "string",
+          "enum": [
+            "startsWith"
+          ],
+          "default": "startsWith",
+          "description": "Workspace matching strategy for comparing logged session cwd values to open workspace folders."
+        },
+        "codexCost.autoRefreshSeconds": {
+          "type": "number",
+          "default": 60,
+          "minimum": 0,
+          "description": "Automatic refresh interval in seconds for the Codex Cost sidebar and status bar. Set to 0 to disable auto-refresh."
+        },
+        "codexCost.filter.startDate": {
+          "type": "string",
+          "default": "",
+          "description": "Fixed inclusive start date for displayed usage in DD.MM.YYYY format, for example 01.01.2000. Leave empty to disable the filter."
+        },
+        "codexCost.budget.dayAmount": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "description": "Daily budget in USD. This defines the value for the day period. Set to 0 to leave the daily budget unconfigured."
+        },
+        "codexCost.budget.weekAmount": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "description": "Weekly budget in USD. This defines the value for the week period. Set to 0 to leave the weekly budget unconfigured."
+        },
+        "codexCost.budget.monthAmount": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "description": "Monthly budget in USD. This defines the value for the month period. Set to 0 to leave the monthly budget unconfigured."
+        },
+        "codexCost.budget.warningPercent": {
+          "type": "number",
+          "default": 80,
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Warning threshold in percent for configured budgets."
+        },
+        "codexCost.statusBar.showSession": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the current session estimate in the VS Code status bar."
+        },
+        "codexCost.statusBar.showWorkspace": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the current workspace estimate in the VS Code status bar."
+        },
+        "codexCost.statusBar.showBudget": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show or hide the budget item in the VS Code status bar."
+        },
+        "codexCost.statusBar.budgetPeriod": {
+          "type": "string",
+          "enum": [
+            "day",
+            "week",
+            "month"
+          ],
+          "default": "month",
+          "enumDescriptions": [
+            "Show the configured daily budget amount in the status bar.",
+            "Show the configured weekly budget amount in the status bar.",
+            "Show the configured monthly budget amount in the status bar."
+          ],
+          "description": "Choose which configured budget period is shown in the VS Code status bar. This changes only the displayed period, not the stored budget values."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "test": "vitest run",
+    "vscode:prepublish": "npm run compile"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.30",
+    "@types/vscode": "^1.74.0",
+    "typescript": "^5.8.3",
+    "vitest": "^2.1.8"
+  }
+}

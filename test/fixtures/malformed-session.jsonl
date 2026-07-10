@@ -1,0 +1,4 @@
+{"timestamp":"2026-06-01T09:00:00.000Z","type":"session_meta","payload":{"id":"session-malformed","source":"vscode","originator":"codex_vscode","cwd":"C:\\Users\\gambjako\\Repositories\\other_repo"}}
+this is not json
+{"timestamp":"2026-06-01T09:01:00.000Z","type":"turn_context","payload":{"cwd":"C:\\Users\\gambjako\\Repositories\\other_repo"}}
+{"timestamp":"2026-06-01T09:02:00.000Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":300,"cached_input_tokens":0,"output_tokens":50,"total_tokens":350}}}}
