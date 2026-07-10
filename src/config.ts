@@ -129,8 +129,8 @@ export function readExtensionConfig(): ExtensionConfig {
     warningPercent: normalizeWarningPercent(configuration.get<number>('budget.warningPercent', 80))
   };
   const budgetNotificationsEnabled = normalizeBoolean(
-    configuration.get<boolean>('budget.notifications.enabled', false),
-    false
+    configuration.get<boolean>('budget.notifications.enabled', true),
+    true
   );
   const statusBarVisibility: StatusBarVisibility = {
     showSession: normalizeBoolean(configuration.get<boolean>('statusBar.showSession', true), true),

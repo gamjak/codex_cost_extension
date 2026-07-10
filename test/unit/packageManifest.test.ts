@@ -23,7 +23,7 @@ describe('VS Code manifest', () => {
       expect(manifest.activationEvents).toContain(`onCommand:${command}`);
     }
     expect(manifest.main).toBe('./out/src/extension.js');
-    expect(manifest.contributes.configuration.properties['codexCost.budget.notifications.enabled'].default).toBe(false);
+    expect(manifest.contributes.configuration.properties['codexCost.budget.notifications.enabled'].default).toBe(true);
     expect(manifest.contributes.configuration.properties['codexCost.sources.include'].default).toEqual([]);
   });
 });

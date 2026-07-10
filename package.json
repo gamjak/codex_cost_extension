@@ -238,8 +238,8 @@
         },
         "codexCost.budget.notifications.enabled": {
           "type": "boolean",
-          "default": false,
-          "description": "Show one warning when the selected workspace budget reaches its threshold and one when it is exceeded."
+          "default": true,
+          "description": "Show one warning when the selected workspace budget reaches its threshold and one when it is exceeded. Enabled by default."
         },
         "codexCost.budget.warningPercent": {
           "type": "number",

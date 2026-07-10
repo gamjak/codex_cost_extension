@@ -83,14 +83,14 @@ You can configure the fixed filter, budgets, and visible status bar items in VS 
 - Example: you can set `day = 25`, `week = 100`, and `month = 500`, then choose `month` to show `Month 154,00 $/500,00 $` in the status bar.
 - This is intentional: daily, weekly, and monthly limits are usually different, so one single amount field would have to be changed every time you switch periods.
 - `codexCost.statusBar.showBudget` only shows or hides the budget item. It does not enable or disable the budget values themselves.
-- `codexCost.budget.notifications.enabled` is `false` by default and must be enabled explicitly.
+- `codexCost.budget.notifications.enabled` is `true` by default. Set it to `false` to disable notifications.
 - Budget windows are calendar-based and ignore the fixed date filter, but respect the active report scope:
   - the status-bar budget covers the current workspace
   - the sidebar budget covers either the current workspace or all sessions, depending on the selected scope
   - `day` = today
   - `week` = current week starting on Monday
   - `month` = current month
-- Budget notifications are opt-in via `codexCost.budget.notifications.enabled` and are shown once per threshold and calendar period. The keys persist across VS Code restarts and reset automatically when the next day, week, or month begins. Notifications are skipped when pricing gaps prevent a reliable estimate.
+- Budget notifications are enabled by default and are shown once per threshold and calendar period. Set `codexCost.budget.notifications.enabled` to `false` to disable them. The keys persist across VS Code restarts and reset automatically when the next day, week, or month begins. Notifications are skipped when pricing gaps prevent a reliable estimate.
 
 ## Local development
 

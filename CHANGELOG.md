@@ -4,7 +4,8 @@ All notable changes to Codex Cost are documented here.
 
 ## Unreleased
 
-- Make budget alerts opt-in, persistent, localized, and actionable.
+- Enable configured budget warnings by default; set `codexCost.budget.notifications.enabled` to `false` to disable them.
+- Make budget alerts persistent, localized, and actionable.
 - Add source filtering, duplicate-session protection, locale-aware model matching, and period-boundary refreshes.
 - Defer startup refresh work and expand tests for source selection, persistence, duplicate sessions, and day boundaries.
 
