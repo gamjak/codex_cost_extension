@@ -113,10 +113,10 @@ function buildBudgetDescription(report: UsageReport): string {
   })}/${formatCostUsd(report.budget.budgetAmount)}`;
 }
 
-function buildBudgetTooltip(report: UsageReport): string {
+function buildBudgetTooltip(report: UsageReport, scope: ViewScope): string {
   const label = budgetPeriodLabel(report.budget.period);
   const lines = [
-    `${label} budget currently shown in the status bar.`,
+    `${label} budget for ${scope === 'workspace' ? 'the current workspace' : 'all sessions'}.`,
     report.budget.budgetAmount
       ? `Budget: ${formatCostUsd(report.budget.budgetAmount)}`
       : 'Budget: not configured',
@@ -165,7 +165,7 @@ export function buildUsageTree(scope: ViewScope, report: UsageReport, refreshInf
       'budget',
       'Budget',
       buildBudgetDescription(report),
-      buildBudgetTooltip(report),
+      buildBudgetTooltip(report, scope),
       report.budget.state === 'error'
         ? 'error'
         : report.budget.state === 'warning'
@@ -220,9 +220,9 @@ export function buildUsageTree(scope: ViewScope, report: UsageReport, refreshInf
       sectionNode(
         'sessions',
         'Recent sessions',
-        report.sessions.map((session) =>
+        report.sessions.map((session, index) =>
           leafNode(
-            `session-${session.sessionId}`,
+            `session-${session.sessionId}-${index}`,
             session.label,
             formatCostUsd(session.estimatedCost, {
               approximate: !session.hasPricing && session.estimatedCost !== undefined

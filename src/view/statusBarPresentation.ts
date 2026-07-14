@@ -45,7 +45,7 @@ function formatSessionCost(session: SessionReportItem | undefined): string {
 
 function buildSessionTooltip(session: SessionReportItem, report: UsageReport, autoRefreshSeconds: number): string {
   return [
-    `Latest workspace session: ${session.label}`,
+    `Latest workspace session (by log timestamp): ${session.label}`,
     describeFilter(report),
     `Updated: ${session.updatedAt}`,
     `Model: ${session.model ?? 'Unknown model'}`,
@@ -62,7 +62,7 @@ function buildSessionTooltip(session: SessionReportItem, report: UsageReport, au
 
 function buildEmptySessionEntry(visible: boolean, report: UsageReport, autoRefreshSeconds: number): StatusBarEntry {
   return {
-    text: '$(history) Session n/a',
+    text: '$(history) Latest n/a',
     tooltip: [
       'No workspace session with filtered token usage found.',
       describeFilter(report),
@@ -110,7 +110,7 @@ function buildBudgetText(report: UsageReport): string {
 function buildBudgetTooltip(report: UsageReport, autoRefreshSeconds: number): string {
   const label = budgetPeriodLabel(report.budget.period);
   const lines = [
-    `${label} budget window`,
+    `${label} workspace budget window`,
     report.budget.budgetAmount
       ? `Budget: ${formatCostUsd(report.budget.budgetAmount)}`
       : 'Budget: not configured',
@@ -147,7 +147,7 @@ export function buildStatusBarEntries(
 
   const session = currentSession
     ? {
-        text: `$(history) Session ${formatSessionCost(currentSession)}`,
+        text: `$(history) Latest ${formatSessionCost(currentSession)}`,
         tooltip: buildSessionTooltip(currentSession, report, options.autoRefreshSeconds),
         visible: options.visibility.showSession,
         tone: 'default' as const

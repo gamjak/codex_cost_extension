@@ -1,11 +1,28 @@
 {
   "name": "codex-cost-extension",
-  "displayName": "Codex Cost",
-  "description": "Estimate Codex token usage cost from local session logs.",
-  "version": "0.2.0",
+  "displayName": "%extension.displayName%",
+  "description": "%extension.description%",
+  "version": "0.2.2",
+  "packageManager": "pnpm@11.7.0",
   "publisher": "gambjako",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gamjak/codex_cost_extension.git"
+  },
+  "homepage": "https://github.com/gamjak/codex_cost_extension#readme",
+  "bugs": {
+    "url": "https://github.com/gamjak/codex_cost_extension/issues"
+  },
+  "keywords": [
+    "codex",
+    "usage",
+    "tokens",
+    "cost",
+    "budget"
+  ],
   "engines": {
-    "vscode": "^1.74.0"
+    "vscode": "^1.96.0"
   },
   "categories": [
     "Other"
@@ -33,29 +50,29 @@
       "codexCost": [
         {
           "id": "codexCost.usage",
-          "name": "Usage & Cost"
+          "name": "%view.usage%"
         }
       ]
     },
     "commands": [
       {
         "command": "codexCost.refresh",
-        "title": "Refresh Codex Cost View",
+        "title": "%command.refresh%",
         "icon": "$(refresh)"
       },
       {
         "command": "codexCost.setScopeWorkspace",
-        "title": "Show Workspace Sessions",
+        "title": "%command.workspace%",
         "icon": "$(folder)"
       },
       {
         "command": "codexCost.setScopeAll",
-        "title": "Show All Sessions",
+        "title": "%command.all%",
         "icon": "$(globe)"
       },
       {
         "command": "codexCost.openSettings",
-        "title": "Open Codex Cost Settings",
+        "title": "%command.settings%",
         "icon": "$(gear)"
       }
     ],
@@ -96,9 +113,32 @@
           },
           "description": "Directories to scan for local Codex session JSONL files."
         },
+        "codexCost.sources.include": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "description": "Optional source filter, for example [\"vscode\", \"cli\"]. Leave empty to include all sources."
+        },
         "codexCost.pricing.models": {
           "type": "object",
           "default": {
+            "gpt-5.6-sol": {
+              "inputPer1M": 5,
+              "cachedInputPer1M": 0.5,
+              "outputPer1M": 30
+            },
+            "gpt-5.6-terra": {
+              "inputPer1M": 2.5,
+              "cachedInputPer1M": 0.25,
+              "outputPer1M": 15
+            },
+            "gpt-5.6-luna": {
+              "inputPer1M": 1,
+              "cachedInputPer1M": 0.1,
+              "outputPer1M": 6
+            },
             "gpt-5.4": {
               "inputPer1M": 2.5,
               "cachedInputPer1M": 0.25,
@@ -130,7 +170,7 @@
               "outputPer1M": 180
             }
           },
-          "description": "Per-model pricing used for local estimated cost.",
+          "description": "Per-model pricing used for local estimated cost. Dated model variants inherit the longest matching configured model family.",
           "additionalProperties": {
             "type": "object",
             "required": [
@@ -166,18 +206,11 @@
           "default": "workspace",
           "description": "Default scope used when the Codex Cost view opens."
         },
-        "codexCost.workspaceMatchMode": {
-          "type": "string",
-          "enum": [
-            "startsWith"
-          ],
-          "default": "startsWith",
-          "description": "Workspace matching strategy for comparing logged session cwd values to open workspace folders."
-        },
         "codexCost.autoRefreshSeconds": {
-          "type": "number",
+          "type": "integer",
           "default": 60,
           "minimum": 0,
+          "maximum": 86400,
           "description": "Automatic refresh interval in seconds for the Codex Cost sidebar and status bar. Set to 0 to disable auto-refresh."
         },
         "codexCost.filter.startDate": {
@@ -202,6 +235,11 @@
           "default": 0,
           "minimum": 0,
           "description": "Monthly budget in USD. This defines the value for the month period. Set to 0 to leave the monthly budget unconfigured."
+        },
+        "codexCost.budget.notifications.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show one warning when the selected workspace budget reaches its threshold and one when it is exceeded. Enabled by default."
         },
         "codexCost.budget.warningPercent": {
           "type": "number",
@@ -245,14 +283,21 @@
   },
   "scripts": {
     "compile": "tsc -p ./",
+    "check": "tsc -p ./ && eslint . && vitest run --exclude out/** --exclude .vscode-test/**",
+    "lint": "eslint .",
+    "package": "vsce package --no-dependencies",
     "watch": "tsc -watch -p ./",
-    "test": "vitest run",
-    "vscode:prepublish": "npm run compile"
+    "test": "vitest run --exclude out/** --exclude .vscode-test/**",
+    "vscode:prepublish": "tsc -p ./ && eslint . && vitest run --exclude out/** --exclude .vscode-test/**"
   },
   "devDependencies": {
-    "@types/node": "^22.15.30",
-    "@types/vscode": "^1.74.0",
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^20.17.0",
+    "@types/vscode": "1.96.0",
+    "@vscode/vsce": "^3.9.2",
+    "eslint": "^10.6.0",
     "typescript": "^5.8.3",
+    "typescript-eslint": "^8.63.0",
     "vitest": "^2.1.8"
   }
 }

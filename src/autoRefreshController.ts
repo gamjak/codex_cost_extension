@@ -3,7 +3,10 @@ export interface AutoRefreshController {
   dispose(): void;
 }
 
-export function createAutoRefreshController(refresh: () => Promise<void> | void): AutoRefreshController {
+export function createAutoRefreshController(
+  refresh: () => Promise<void> | void,
+  onError: (error: unknown) => void = () => undefined
+): AutoRefreshController {
   let timer: NodeJS.Timeout | undefined;
 
   const clearTimer = (): void => {
@@ -24,7 +27,7 @@ export function createAutoRefreshController(refresh: () => Promise<void> | void)
       }
 
       timer = setInterval(() => {
-        void Promise.resolve(refresh()).catch(() => undefined);
+        void Promise.resolve(refresh()).catch(onError);
       }, seconds * 1000);
     },
 

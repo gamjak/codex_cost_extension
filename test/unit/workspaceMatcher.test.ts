@@ -6,6 +6,10 @@ describe('normalizeFsPath', () => {
   it('normalizes separators, case, and trailing slashes', () => {
     expect(normalizeFsPath('C:\\Users\\gambjako\\Repo\\')).toBe('c:/users/gambjako/repo');
   });
+
+  it('preserves case for POSIX paths', () => {
+    expect(normalizeFsPath('/Users/Alice/Repo/')).toBe('/Users/Alice/Repo');
+  });
 });
 
 describe('matchesWorkspaceRoots', () => {
@@ -35,5 +39,9 @@ describe('matchesWorkspaceRoots', () => {
 
   it('returns false when session cwd is missing', () => {
     expect(matchesWorkspaceRoots(undefined, ['C:\\Users\\gambjako\\Repositories\\codex_cost_extension'])).toBe(false);
+  });
+
+  it('does not merge differently cased POSIX workspaces', () => {
+    expect(matchesWorkspaceRoots('/home/alice/Repo', ['/home/alice/repo'])).toBe(false);
   });
 });

@@ -45,4 +45,16 @@ describe('createAutoRefreshController', () => {
     expect(refresh).toHaveBeenCalledTimes(4);
     controller.dispose();
   });
+
+  it('reports asynchronous refresh failures', async () => {
+    const error = new Error('refresh failed');
+    const onError = vi.fn();
+    const controller = createAutoRefreshController(() => Promise.reject(error), onError);
+
+    controller.updateIntervalSeconds(1);
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    expect(onError).toHaveBeenCalledWith(error);
+    controller.dispose();
+  });
 });

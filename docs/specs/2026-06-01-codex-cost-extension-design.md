@@ -204,26 +204,20 @@ Default view scope:
 
 Default should be `workspace`.
 
-### `codexCost.workspaceMatchMode`
+### `codexCost.sources.include`
 
-Workspace filtering strategy.
-
-Default:
-
-- `startsWith`
-
-This supports the common case where logged `cwd` is a subpath of the opened workspace root.
+Optional normalized source filter. An empty array includes all sources. Supported normalized values include `vscode`, `cli`, `desktop`, and `unknown`.
 
 ## Log Filtering Rules
 
-The extension should consider only local Codex sessions created from VS Code.
+The extension reads local Codex sessions from all configured roots by default.
 
 Primary signals:
 
 - `session_meta.payload.source == "vscode"`
 - or `session_meta.payload.originator` matching VS Code Codex origin values
 
-If neither field is present, the parser may retain the session as unknown-source data, but v1 should prefer explicit VS Code sessions when available.
+Source filters are applied only when `codexCost.sources.include` is non-empty. Sessions without a recognized source are classified as `unknown`.
 
 ## Parsing Rules
 

@@ -1,11 +1,16 @@
 import * as path from 'node:path';
 
-export function normalizeFsPath(input: string): string {
-  const resolved = path.resolve(input);
-  const withForwardSlashes = resolved.replace(/\\/g, '/');
-  const withoutTrailingSlash = withForwardSlashes.replace(/\/+$/, '');
+function isWindowsPath(input: string): boolean {
+  return /^[a-zA-Z]:[\\/]/.test(input) || /^\\\\/.test(input);
+}
 
-  return withoutTrailingSlash.toLowerCase();
+export function normalizeFsPath(input: string): string {
+  if (isWindowsPath(input)) {
+    const normalized = path.win32.normalize(input).replace(/\\/g, '/').replace(/\/+$/, '');
+    return normalized.toLowerCase();
+  }
+
+  return path.posix.normalize(input.replace(/\\/g, '/')).replace(/\/+$/, '');
 }
 
 export function matchesWorkspaceRoots(sessionCwd: string | undefined, workspaceRoots: readonly string[]): boolean {

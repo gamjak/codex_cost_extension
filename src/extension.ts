@@ -1,19 +1,45 @@
 import * as vscode from 'vscode';
 
 import { createAutoRefreshController } from './autoRefreshController';
+import { BudgetNotificationController } from './budgetNotificationController';
 import { readExtensionConfig } from './config';
+import { createPeriodBoundaryController } from './periodBoundaryController';
 import { CodexCostTreeProvider } from './view/costTreeProvider';
 
-export async function activate(context: vscode.ExtensionContext): Promise<void> {
+export function activate(context: vscode.ExtensionContext): void {
   const provider = new CodexCostTreeProvider(context);
-  const autoRefreshController = createAutoRefreshController(() => provider.refresh());
+  const initialConfiguration = readExtensionConfig();
+  const budgetNotifications = new BudgetNotificationController(
+    (message) => {
+      void vscode.window.showWarningMessage(message, 'Open Budget Settings', 'Refresh').then((action) => {
+        if (action === 'Open Budget Settings') {
+          void vscode.commands.executeCommand('codexCost.openSettings');
+        } else if (action === 'Refresh') {
+          void refreshAndNotify();
+        }
+      });
+    },
+    (keys) => {
+      void context.globalState.update('codexCost.budgetNotificationKeys', keys);
+    },
+    context.globalState.get<string[]>('codexCost.budgetNotificationKeys', []),
+    vscode.env.language
+  );
+  const refreshAndNotify = async (): Promise<void> => {
+    await provider.refresh();
+    const status = provider.getLatestBudgetStatus();
+    if (readExtensionConfig().budgetNotificationsEnabled && status) budgetNotifications.notify(status, new Date());
+  };
+  const autoRefreshController = createAutoRefreshController(() => refreshAndNotify());
+  const periodBoundaryController = createPeriodBoundaryController(() => refreshAndNotify());
 
   context.subscriptions.push(vscode.window.registerTreeDataProvider('codexCost.usage', provider));
   context.subscriptions.push(autoRefreshController);
+  context.subscriptions.push(periodBoundaryController);
 
   context.subscriptions.push(
     vscode.commands.registerCommand('codexCost.refresh', async () => {
-      await provider.refresh();
+      await refreshAndNotify();
     })
   );
 
@@ -39,13 +65,19 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.workspace.onDidChangeConfiguration(async (event) => {
       if (event.affectsConfiguration('codexCost')) {
         autoRefreshController.updateIntervalSeconds(readExtensionConfig().autoRefreshSeconds);
-        await provider.refresh();
+        await refreshAndNotify();
       }
     })
   );
 
-  await provider.initialize();
-  autoRefreshController.updateIntervalSeconds(readExtensionConfig().autoRefreshSeconds);
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeWorkspaceFolders(async () => {
+      await refreshAndNotify();
+    })
+  );
+
+  autoRefreshController.updateIntervalSeconds(initialConfiguration.autoRefreshSeconds);
+  void refreshAndNotify();
 }
 
 export function deactivate(): void {}

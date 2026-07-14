@@ -8,11 +8,12 @@ import type { BudgetPeriod, BudgetSettings, PricingByModel, StatusBarVisibility,
 export interface ExtensionConfig {
   logRoots: string[];
   pricingByModel: PricingByModel;
+  sessionSources: string[];
   scopeDefault: ViewScope;
-  workspaceMatchMode: 'startsWith';
   autoRefreshSeconds: number;
   filterStartDate: string;
   budgetSettings: BudgetSettings;
+  budgetNotificationsEnabled: boolean;
   statusBarVisibility: StatusBarVisibility;
   statusBarBudgetPeriod: BudgetPeriod;
 }
@@ -41,15 +42,22 @@ function normalizePricing(value: unknown): PricingByModel {
     }
 
     const record = candidate as Record<string, unknown>;
-    const inputPer1M = typeof record.inputPer1M === 'number' ? record.inputPer1M : undefined;
-    const cachedInputPer1M = typeof record.cachedInputPer1M === 'number' ? record.cachedInputPer1M : undefined;
-    const outputPer1M = typeof record.outputPer1M === 'number' ? record.outputPer1M : undefined;
+    const validPrice = (candidateValue: unknown): candidateValue is number =>
+      typeof candidateValue === 'number' && Number.isFinite(candidateValue) && candidateValue >= 0;
+    const inputPer1M = validPrice(record.inputPer1M) ? record.inputPer1M : undefined;
+    const cachedInputPer1M = validPrice(record.cachedInputPer1M) ? record.cachedInputPer1M : undefined;
+    const outputPer1M = validPrice(record.outputPer1M) ? record.outputPer1M : undefined;
 
     if (inputPer1M === undefined || cachedInputPer1M === undefined || outputPer1M === undefined) {
       continue;
     }
 
-    pricing[model] = {
+    const normalizedModel = model.trim().toLowerCase();
+    if (!normalizedModel) {
+      continue;
+    }
+
+    pricing[normalizedModel] = {
       inputPer1M,
       cachedInputPer1M,
       outputPer1M
@@ -64,7 +72,7 @@ function normalizeAutoRefreshSeconds(value: unknown): number {
     return 60;
   }
 
-  return Math.max(0, Math.floor(value));
+  return Math.min(86_400, Math.max(0, Math.floor(value)));
 }
 
 function normalizePositiveNumber(value: unknown): number {
@@ -98,10 +106,20 @@ function normalizeBoolean(value: unknown, fallback: boolean): boolean {
 export function readExtensionConfig(): ExtensionConfig {
   const configuration = vscode.workspace.getConfiguration('codexCost');
 
-  const rawRoots = configuration.get<string[]>('logRoots', ['%USERPROFILE%/.codex/sessions']);
-  const scopeDefault = configuration.get<ViewScope>('scopeDefault', 'workspace');
-  const workspaceMatchMode = configuration.get<'startsWith'>('workspaceMatchMode', 'startsWith');
+  const configuredRoots = configuration.get<unknown>('logRoots');
+  const rawRoots = Array.isArray(configuredRoots)
+    ? configuredRoots.filter((root): root is string => typeof root === 'string')
+    : ['%USERPROFILE%/.codex/sessions'];
+  const rawScopeDefault = configuration.get<string>('scopeDefault', 'workspace');
+  const scopeDefault: ViewScope = rawScopeDefault === 'all' ? 'all' : 'workspace';
   const rawPricing = configuration.get<Record<string, unknown>>('pricing.models', {});
+  const rawSources = configuration.get<unknown>('sources.include');
+  const sessionSources = Array.isArray(rawSources)
+    ? Array.from(new Set(rawSources
+        .filter((source): source is string => typeof source === 'string')
+        .map((source) => source.trim().toLowerCase())
+        .filter(Boolean)))
+    : [];
   const autoRefreshSeconds = normalizeAutoRefreshSeconds(configuration.get<number>('autoRefreshSeconds', 60));
   const filterStartDate = normalizeFilterStartDate(configuration.get<string>('filter.startDate', ''));
   const budgetSettings: BudgetSettings = {
@@ -110,6 +128,10 @@ export function readExtensionConfig(): ExtensionConfig {
     monthAmount: normalizePositiveNumber(configuration.get<number>('budget.monthAmount', 0)),
     warningPercent: normalizeWarningPercent(configuration.get<number>('budget.warningPercent', 80))
   };
+  const budgetNotificationsEnabled = normalizeBoolean(
+    configuration.get<boolean>('budget.notifications.enabled', true),
+    true
+  );
   const statusBarVisibility: StatusBarVisibility = {
     showSession: normalizeBoolean(configuration.get<boolean>('statusBar.showSession', true), true),
     showWorkspace: normalizeBoolean(configuration.get<boolean>('statusBar.showWorkspace', true), true),
@@ -118,13 +140,14 @@ export function readExtensionConfig(): ExtensionConfig {
   const statusBarBudgetPeriod = normalizeBudgetPeriod(configuration.get<string>('statusBar.budgetPeriod', 'month'));
 
   return {
-    logRoots: rawRoots.map(resolveHomePath),
+    logRoots: Array.from(new Set(rawRoots.filter((root) => root.trim()).map(resolveHomePath))),
     pricingByModel: normalizePricing(rawPricing),
+    sessionSources,
     scopeDefault,
-    workspaceMatchMode,
     autoRefreshSeconds,
     filterStartDate,
     budgetSettings,
+    budgetNotificationsEnabled,
     statusBarVisibility,
     statusBarBudgetPeriod
   };

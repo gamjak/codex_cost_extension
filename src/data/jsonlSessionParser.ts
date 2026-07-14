@@ -6,6 +6,17 @@ import type { ParsedSession, TokenUsageSnapshot } from '../domain/types';
 
 type JsonRecord = Record<string, unknown>;
 
+export interface SessionParseDiagnostics {
+  malformedLines: number;
+  invalidTimestamps: number;
+  invalidTokenUsageRecords: number;
+}
+
+export interface SessionParseResult {
+  session: ParsedSession | null;
+  diagnostics: SessionParseDiagnostics;
+}
+
 function asRecord(value: unknown): JsonRecord | undefined {
   return typeof value === 'object' && value !== null ? (value as JsonRecord) : undefined;
 }
@@ -45,12 +56,17 @@ function fallbackSessionId(filePath: string): string {
   return path.basename(filePath, path.extname(filePath));
 }
 
-export async function parseSessionFile(filePath: string): Promise<ParsedSession | null> {
+export async function parseSessionFileWithDiagnostics(filePath: string): Promise<SessionParseResult> {
   const session: ParsedSession = {
     sessionId: fallbackSessionId(filePath),
     filePath,
     updatedAt: '',
     usageHistory: []
+  };
+  const diagnostics: SessionParseDiagnostics = {
+    malformedLines: 0,
+    invalidTimestamps: 0,
+    invalidTokenUsageRecords: 0
   };
 
   const stream = fs.createReadStream(filePath, { encoding: 'utf8' });
@@ -69,11 +85,16 @@ export async function parseSessionFile(filePath: string): Promise<ParsedSession 
     try {
       parsed = JSON.parse(line) as JsonRecord;
     } catch {
+      diagnostics.malformedLines += 1;
       continue;
     }
 
     const timestamp = asString(parsed.timestamp);
-    if (timestamp && timestamp > session.updatedAt) {
+    const hasValidTimestamp = timestamp !== undefined && Number.isFinite(Date.parse(timestamp));
+    if (timestamp && !hasValidTimestamp) {
+      diagnostics.invalidTimestamps += 1;
+    }
+    if (timestamp && hasValidTimestamp && timestamp > session.updatedAt) {
       session.updatedAt = timestamp;
     }
 
@@ -105,7 +126,7 @@ export async function parseSessionFile(filePath: string): Promise<ParsedSession 
       if (usage) {
         session.usage = usage;
 
-        if (timestamp) {
+        if (timestamp && hasValidTimestamp) {
           session.usageHistory.push({
             timestamp,
             cwd: session.cwd,
@@ -113,15 +134,19 @@ export async function parseSessionFile(filePath: string): Promise<ParsedSession 
             tokens: usage
           });
         }
+      } else {
+        diagnostics.invalidTokenUsageRecords += 1;
       }
     }
   }
 
-  stream.close();
-
   if (!session.updatedAt) {
-    return null;
+    return { session: null, diagnostics };
   }
 
-  return session;
+  return { session, diagnostics };
+}
+
+export async function parseSessionFile(filePath: string): Promise<ParsedSession | null> {
+  return (await parseSessionFileWithDiagnostics(filePath)).session;
 }

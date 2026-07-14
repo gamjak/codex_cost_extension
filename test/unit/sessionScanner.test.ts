@@ -30,4 +30,15 @@ describe('findSessionFiles', () => {
 
     expect(files).toEqual([path.join(nested, 'session-a.jsonl')]);
   });
+
+  it('deduplicates files when configured roots overlap', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'codex-cost-'));
+    tempDirectories.push(root);
+    const nested = path.join(root, 'nested');
+    await fs.mkdir(nested, { recursive: true });
+    const sessionPath = path.join(nested, 'session.jsonl');
+    await fs.writeFile(sessionPath, '{}\n', 'utf8');
+
+    expect(await findSessionFiles([root, nested])).toEqual([sessionPath]);
+  });
 });

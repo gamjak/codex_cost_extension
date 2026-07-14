@@ -39,7 +39,7 @@ function createSession(
   model: string | undefined,
   usageHistory: SessionUsageSnapshot[]
 ): ParsedSession {
-  const latestSnapshot = usageHistory[usageHistory.length - 1]!;
+  const latestSnapshot = usageHistory[usageHistory.length - 1];
 
   return {
     sessionId,
@@ -167,18 +167,93 @@ describe('buildUsageReport', () => {
 
     expect(weekReport.budget).toMatchObject({
       period: 'week',
-      spentCost: 2.5,
+      spentCost: 1.5,
       budgetAmount: 3,
-      state: 'warning',
+      state: 'neutral',
       hasEstimatedCostGaps: true
     });
 
     expect(monthReport.budget).toMatchObject({
       period: 'month',
-      spentCost: 2.5,
+      spentCost: 1.5,
       budgetAmount: 2,
-      state: 'error',
+      state: 'neutral',
       hasEstimatedCostGaps: true
     });
+  });
+
+  it('applies budget totals to the active workspace scope', () => {
+    const report = buildUsageReport(sessions, pricing, {
+      scope: 'workspace',
+      workspaceRoots: [workspaceRoot],
+      budgetSettings: { dayAmount: 0, weekAmount: 0, monthAmount: 10, warningPercent: 80 },
+      budgetPeriod: 'month',
+      now: new Date('2026-06-05T12:00:00.000Z')
+    });
+
+    expect(report.budget.spentCost).toBeCloseTo(1.5);
+  });
+
+  it('includes non-VS Code sessions and resolves dated model variants by family', () => {
+    const cliSession = {
+      ...createSession('cli-session', workspaceRoot, 'gpt-5.4-2026-07-10', [
+        snapshot('2026-06-05T10:00:00.000Z', 1_000_000, 0, workspaceRoot, 'gpt-5.4-2026-07-10')
+      ]),
+      source: 'cli',
+      originator: 'codex_cli'
+    };
+
+    const report = buildUsageReport([cliSession], pricing, {
+      scope: 'all',
+      workspaceRoots: [],
+      budgetSettings: { dayAmount: 0, weekAmount: 0, monthAmount: 10, warningPercent: 80 },
+      budgetPeriod: 'month',
+      now: new Date('2026-06-05T12:00:00.000Z')
+    });
+
+    expect(report.summary.sessionsCount).toBe(1);
+    expect(report.summary.estimatedCost).toBeCloseTo(1);
+    expect(report.warnings).not.toContain('Missing pricing for model: gpt-5.4-2026-07-10');
+  });
+
+  it('can restrict reports to normalized session sources', () => {
+    const vscodeSession = sessions[0];
+    const cliSession = {
+      ...sessions[1],
+      source: undefined,
+      originator: 'codex_cli'
+    };
+    const report = buildUsageReport([vscodeSession, cliSession], pricing, {
+      scope: 'all',
+      workspaceRoots: [],
+      sessionSources: ['cli'],
+      budgetSettings: { dayAmount: 0, weekAmount: 0, monthAmount: 0, warningPercent: 80 },
+      budgetPeriod: 'month',
+      now: new Date('2026-06-05T12:00:00.000Z')
+    });
+
+    expect(report.summary.sessionsCount).toBe(1);
+    expect(report.sessions[0]?.sessionId).toBe('all-other-workspace');
+  });
+
+  it('keeps duplicate session IDs from separate files separate', () => {
+    const first = createSession('duplicate', workspaceRoot, 'gpt-5.4', [
+      snapshot('2026-06-05T10:00:00.000Z', 100, 0, workspaceRoot)
+    ]);
+    const second = {
+      ...first,
+      filePath: 'different-file.jsonl',
+      usageHistory: [snapshot('2026-06-05T11:00:00.000Z', 200, 0, workspaceRoot)]
+    };
+    const report = buildUsageReport([first, second], pricing, {
+      scope: 'all',
+      workspaceRoots: [],
+      budgetSettings: { dayAmount: 0, weekAmount: 0, monthAmount: 0, warningPercent: 80 },
+      budgetPeriod: 'month',
+      now: new Date('2026-06-05T12:00:00.000Z')
+    });
+
+    expect(report.summary.sessionsCount).toBe(2);
+    expect(report.models[0]?.sessionCount).toBe(2);
   });
 });

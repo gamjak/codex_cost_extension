@@ -21,6 +21,7 @@ import type {
 export interface BuildUsageReportOptions {
   scope: ViewScope;
   workspaceRoots: readonly string[];
+  sessionSources?: readonly string[];
   filterStartDateInput?: string;
   budgetSettings: BudgetSettings;
   budgetPeriod: BudgetPeriod;
@@ -50,24 +51,43 @@ interface CostAccumulator {
   hasPricing: boolean;
 }
 
-function isVsCodeSession(session: ParsedSession): boolean {
-  if (session.source) {
-    return session.source.toLowerCase() === 'vscode';
-  }
-
-  if (session.originator) {
-    return session.originator.toLowerCase().includes('vscode');
-  }
-
-  return true;
-}
-
 function getSessionLabel(cwd: string | undefined, sessionId: string): string {
   if (!cwd) {
     return sessionId;
   }
 
   return path.basename(cwd) || cwd;
+}
+
+function getSessionKey(session: ParsedSession): string {
+  return `${path.resolve(session.filePath)}::${session.sessionId}`;
+}
+
+function normalizedSessionSource(session: ParsedSession): string {
+  const source = session.source ?? session.originator ?? 'unknown';
+  const normalized = source.toLowerCase();
+  if (normalized.includes('vscode')) return 'vscode';
+  if (normalized.includes('cli')) return 'cli';
+  if (normalized.includes('desktop')) return 'desktop';
+  return normalized || 'unknown';
+}
+
+export function resolveModelPricing(model: string | undefined, pricingByModel: PricingByModel): ModelPricing | undefined {
+  if (!model) {
+    return undefined;
+  }
+
+  const normalizedModel = model.trim().toLowerCase();
+
+  if (pricingByModel[normalizedModel]) {
+    return pricingByModel[normalizedModel];
+  }
+
+  const matchingFamily = Object.keys(pricingByModel)
+    .filter((candidate) => normalizedModel.startsWith(`${candidate}-`))
+    .sort((left, right) => right.length - left.length)[0];
+
+  return matchingFamily ? pricingByModel[matchingFamily] : undefined;
 }
 
 function estimateCost(snapshot: TokenUsageSnapshot, pricing: ModelPricing | undefined): number | undefined {
@@ -254,7 +274,10 @@ export function buildUsageReport(
   let budgetHasPricedUsage = false;
   let budgetHasPricingGaps = false;
 
-  for (const session of sessions.filter(isVsCodeSession)) {
+  const allowedSources = new Set((options.sessionSources ?? []).map((source) => source.toLowerCase()));
+  for (const session of sessions.filter((candidate) =>
+    allowedSources.size === 0 || allowedSources.has(normalizedSessionSource(candidate)))) {
+    const sessionKey = getSessionKey(session);
     for (const delta of buildSessionUsageDeltas(session)) {
       const deltaTimestampMs = new Date(delta.timestamp).getTime();
       if (!Number.isFinite(deltaTimestampMs) || deltaTimestampMs > nowMs) {
@@ -263,8 +286,8 @@ export function buildUsageReport(
 
       const matchesScope = options.scope === 'all' || matchesWorkspaceRoots(delta.cwd, options.workspaceRoots);
       const matchesFilterWindow = (filterStartAtMs === undefined || deltaTimestampMs >= filterStartAtMs) && matchesScope;
-      const matchesBudgetWindow = deltaTimestampMs >= budgetStartAtMs;
-      const pricing = delta.model ? pricingByModel[delta.model] : undefined;
+      const matchesBudgetWindow = deltaTimestampMs >= budgetStartAtMs && matchesScope;
+      const pricing = resolveModelPricing(delta.model, pricingByModel);
 
       if (matchesFilterWindow || matchesBudgetWindow) {
         if (!delta.model) {
@@ -275,7 +298,7 @@ export function buildUsageReport(
       }
 
       if (matchesFilterWindow) {
-        const sessionAccumulator = sessionAccumulators.get(session.sessionId) ?? createSessionAccumulator(session.sessionId);
+        const sessionAccumulator = sessionAccumulators.get(sessionKey) ?? createSessionAccumulator(session.sessionId);
         sessionAccumulator.tokens = addTokenUsage(sessionAccumulator.tokens, delta.tokens);
         sessionAccumulator.updatedAt = sessionAccumulator.updatedAt.localeCompare(delta.timestamp) >= 0
           ? sessionAccumulator.updatedAt
@@ -283,12 +306,12 @@ export function buildUsageReport(
         sessionAccumulator.cwd = delta.cwd ?? session.cwd;
         sessionAccumulator.model = delta.model ?? session.model;
         updateCostAccumulator(sessionAccumulator, delta.tokens, pricing, Boolean(delta.model));
-        sessionAccumulators.set(session.sessionId, sessionAccumulator);
+        sessionAccumulators.set(sessionKey, sessionAccumulator);
 
         const modelKey = delta.model ?? 'unknown';
         const modelAccumulator = modelAccumulators.get(modelKey) ?? createModelAccumulator(modelKey);
         modelAccumulator.tokens = addTokenUsage(modelAccumulator.tokens, delta.tokens);
-        modelAccumulator.sessionIds.add(session.sessionId);
+        modelAccumulator.sessionIds.add(sessionKey);
         updateCostAccumulator(modelAccumulator, delta.tokens, pricing, Boolean(delta.model));
         modelAccumulators.set(modelKey, modelAccumulator);
       }
