@@ -276,18 +276,13 @@ function emptyUsageReport(configuration: ReturnType<typeof readExtensionConfig>)
 }
 
 function emptyCostControlReport(configuration: ReturnType<typeof readExtensionConfig>): CostControlReport {
-  const today = emptyUsageReport(configuration);
-  return {
-    today: {
-      ...today,
-      budget: {
-        ...today.budget,
-        period: 'day',
-        budgetAmount: configuration.budgetSettings.dayAmount || undefined
-      }
-    },
-    remainingCost: undefined,
-    projectedCost: undefined,
-    daily: []
-  };
+  return buildCostControlReport([], configuration.pricingByModel, {
+    scope: 'workspace',
+    workspaceRoots: [],
+    sessionSources: configuration.sessionSources,
+    filterStartDateInput: configuration.filterStartDate,
+    budgetSettings: configuration.budgetSettings,
+    budgetPeriod: 'day',
+    now: new Date()
+  });
 }

@@ -67,3 +67,9 @@ export function buildCostSummaryText(control: CostControlReport): string {
     'Estimated local Codex cost; pricing may differ from billed usage.'
   ].filter((line): line is string => Boolean(line)).join('\n');
 }
+
+export function buildCostControlQuickPickPlaceholder(control: CostControlReport | undefined): string {
+  return control
+    ? `${buildCostControlText(control).text} — choose an action`
+    : 'No daily cost summary available — choose an action';
+}

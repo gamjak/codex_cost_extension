@@ -56,7 +56,7 @@ function buildSessionTooltip(session: SessionReportItem, report: UsageReport, au
           approximate: !session.hasPricing
         })}`,
     describeAutoRefresh(autoRefreshSeconds),
-    'Click to refresh now.'
+    'Click to open Cost Dashboard.'
   ].join('\n');
 }
 
@@ -67,7 +67,7 @@ function buildEmptySessionEntry(visible: boolean, report: UsageReport, autoRefre
       'No workspace session with filtered token usage found.',
       describeFilter(report),
       describeAutoRefresh(autoRefreshSeconds),
-      'Click to refresh now.'
+      'Click to open Cost Dashboard.'
     ].join('\n'),
     visible,
     tone: 'default'
@@ -88,7 +88,7 @@ function buildWorkspaceTooltip(report: UsageReport, autoRefreshSeconds: number):
       ? `Sessions with estimate: ${formatTokensDe(report.sessions.filter((session) => session.estimatedCost !== undefined).length)}`
       : undefined,
     describeAutoRefresh(autoRefreshSeconds),
-    'Click to refresh now.'
+    'Click to open Cost Dashboard.'
   ];
 
   return lines.filter((line): line is string => Boolean(line)).join('\n');
@@ -117,7 +117,7 @@ export function buildStatusBarEntries(
           'No workspace usage matched the active filter.',
           describeFilter(report),
           describeAutoRefresh(options.autoRefreshSeconds),
-          'Click to refresh now.'
+          'Click to open Cost Dashboard.'
         ].join('\n'),
         visible: options.visibility.showWorkspace,
         tone: 'default'

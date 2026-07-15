@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import type { CostControlReport } from '../../src/domain/types';
-import { buildCostControlText, buildCostSummaryText } from '../../src/view/costControlPresentation';
+import {
+  buildCostControlQuickPickPlaceholder,
+  buildCostControlText,
+  buildCostSummaryText
+} from '../../src/view/costControlPresentation';
 
 const control: CostControlReport = {
   today: {
@@ -67,5 +71,13 @@ describe('buildCostSummaryText', () => {
       'Projected end of day: 1,00 $',
       'Estimated local Codex cost; pricing may differ from billed usage.'
     ].join('\n'));
+  });
+});
+
+describe('buildCostControlQuickPickPlaceholder', () => {
+  it('surfaces the latest daily spend, budget, and state in the action picker', () => {
+    expect(buildCostControlQuickPickPlaceholder(control)).toBe(
+      'Today 0,50 $/1,00 $ · On track — choose an action'
+    );
   });
 });

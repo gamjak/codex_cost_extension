@@ -4,6 +4,7 @@ import { createAutoRefreshController } from './autoRefreshController';
 import { BudgetNotificationController } from './budgetNotificationController';
 import { readExtensionConfig } from './config';
 import { createPeriodBoundaryController } from './periodBoundaryController';
+import { buildCostControlQuickPickPlaceholder } from './view/costControlPresentation';
 import { CodexCostTreeProvider } from './view/costTreeProvider';
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -68,7 +69,7 @@ export function activate(context: vscode.ExtensionContext): void {
         { label: 'Refresh cost data', value: 'refresh' },
         { label: 'Configure daily budget', value: 'budget' },
         { label: 'Open Codex Cost settings', value: 'settings' }
-      ], { placeHolder: 'Choose a Codex Cost action' });
+      ], { placeHolder: buildCostControlQuickPickPlaceholder(provider.getLatestCostControl()) });
 
       if (action?.value === 'dashboard') {
         await vscode.commands.executeCommand('codexCost.openDashboard');
