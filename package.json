@@ -288,7 +288,7 @@
     "package": "vsce package --no-dependencies",
     "watch": "tsc -watch -p ./",
     "test": "vitest run",
-    "vscode:prepublish": "tsc -p ./ && eslint . && vitest run"
+    "vscode:prepublish": "tsc -p tsconfig.build.json && eslint . && vitest run"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
