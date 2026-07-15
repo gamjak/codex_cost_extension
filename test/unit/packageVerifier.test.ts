@@ -39,8 +39,19 @@ describe('package verifier', () => {
     expect(result.status).not.toBe(0);
     expect(result.stderr).toContain('extension/out/test/');
 
-    const configResult = verifyPackage([...requiredPackagePaths, 'extension/out/vitest.config.js']);
-    expect(configResult.status).not.toBe(0);
-    expect(configResult.stderr).toContain('extension/out/vitest.config.js');
+    for (const configPath of ['extension/out/vitest.config.js', 'extension/out/vitest.config.cjs']) {
+      const configResult = verifyPackage([...requiredPackagePaths, configPath]);
+      expect(configResult.status).not.toBe(0);
+      expect(configResult.stderr).toContain(configPath);
+    }
+  });
+
+  it('rejects repository metadata in the extension package', () => {
+    for (const metadataPath of ['extension/.github/ISSUE_TEMPLATE/bug-report.yml', 'extension/.vscode/tasks.json']) {
+      const result = verifyPackage([...requiredPackagePaths, metadataPath]);
+
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).toContain(metadataPath);
+    }
   });
 });

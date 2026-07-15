@@ -9,13 +9,13 @@ const requiredPaths = [
 const forbiddenPrefixes = [
   'extension/out/test/',
   'extension/test/',
-  'extension/.github/workflows/',
+  'extension/.github/',
+  'extension/.vscode/',
+  'extension/out/vitest.config.',
   'extension/docs/',
   'extension/work/',
   'extension/.superpowers/'
 ];
-
-const forbiddenPaths = ['extension/out/vitest.config.js'];
 
 function fail(message) {
   console.error(`Package verification failed: ${message}`);
@@ -36,7 +36,7 @@ function verify(paths) {
   }
 
   const forbiddenPath = paths.find((packagePath) =>
-    forbiddenPaths.includes(packagePath) || forbiddenPrefixes.some((prefix) => packagePath.startsWith(prefix))
+    forbiddenPrefixes.some((prefix) => packagePath.startsWith(prefix))
   );
   if (forbiddenPath) {
     fail(`forbidden package path: ${forbiddenPath}. Update .vscodeignore or the build configuration.`);

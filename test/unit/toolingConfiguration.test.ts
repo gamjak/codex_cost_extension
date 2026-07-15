@@ -120,7 +120,7 @@ describe('tooling configuration', () => {
     expect(workflow).toContain('actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7');
     expect(workflow).toContain('pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6');
     expect(workflow).toContain('actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7');
-    expect(workflow).toMatch(/pnpm run package --out codex-cost-extension\.vsix\s*\n\s*- run: pnpm run verify-package/);
+    expect(workflow).toMatch(/pnpm run check\s*\n\s*- run: pnpm run package --out codex-cost-extension\.vsix\s*\n\s*- run: pnpm run verify-package/);
     expect(workflow).toMatch(/- name: Publish to VS Code Marketplace\s*\n\s+env:\s*\n\s+VSCE_PAT: \$\{\{ secrets\.VSCE_PAT \}\}\s*\n\s+run: pnpm exec vsce publish --packagePath codex-cost-extension\.vsix/m);
     expect((workflow.match(/VSCE_PAT/g) ?? [])).toHaveLength(2);
   });
