@@ -42,7 +42,8 @@ function treeOutputToPaths(treeOutput) {
 
     const depth = Math.floor(markerIndex / 3);
     segments.length = depth;
-    segments.push(nameMatch[1]);
+    const entryName = nameMatch[1].replace(/\s+\[[^\]]+\]$/, '').replace(/\/$/, '');
+    segments.push(entryName);
     paths.push(['extension', ...segments].join('/'));
   }
 

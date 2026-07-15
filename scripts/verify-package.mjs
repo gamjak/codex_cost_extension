@@ -3,7 +3,7 @@ const requiredPaths = [
   'extension/package.json',
   'extension/README.md',
   'extension/LICENSE',
-  'extension/l10n/bundle.l10n.de.json'
+  'extension/package.nls.de.json'
 ];
 
 const forbiddenPrefixes = [
