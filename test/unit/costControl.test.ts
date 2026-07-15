@@ -63,4 +63,15 @@ describe('buildCostControlReport', () => {
     expect(control.daily).toHaveLength(7);
     expect(control.daily.at(-1)).toMatchObject({ date: '05.06.2026', estimatedCost: 0.5 });
   });
+
+  it('uses the daily budget when the caller selected another budget period', () => {
+    const control = buildCostControlReport(sessions, pricing, {
+      ...options,
+      budgetPeriod: 'month',
+      now: new Date('2026-06-05T12:00:00.000Z')
+    });
+
+    expect(control.today.budget.period).toBe('day');
+    expect(control.remainingCost).toBeCloseTo(0.5);
+  });
 });

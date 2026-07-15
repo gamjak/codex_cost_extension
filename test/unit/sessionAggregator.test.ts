@@ -106,7 +106,11 @@ describe('buildUsageReport', () => {
   });
 
   it('returns only deltas inside an explicit end boundary', () => {
-    const report = buildUsageReport(sessions, pricing, {
+    const afterEndSession = createSession('workspace-after-end', workspaceRoot, 'gpt-5.4', [
+      snapshot('2026-06-06T00:00:00.000Z', 200_000, 0, workspaceRoot),
+      snapshot('2026-06-06T01:00:00.000Z', 300_000, 0, workspaceRoot)
+    ]);
+    const report = buildUsageReport([...sessions, afterEndSession], pricing, {
       scope: 'workspace',
       workspaceRoots: [workspaceRoot],
       budgetSettings: {
@@ -116,7 +120,7 @@ describe('buildUsageReport', () => {
         warningPercent: 80
       },
       budgetPeriod: 'month',
-      now: new Date('2026-06-05T12:00:00.000Z'),
+      now: new Date('2026-06-06T12:00:00.000Z'),
       filterStartDateInput: '05.06.2026',
       filterEndAt: new Date('2026-06-06T00:00:00.000Z')
     });

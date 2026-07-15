@@ -36,7 +36,7 @@ export function buildCostControlReport(
   const now = options.now ?? new Date();
   const todayStart = startOfLocalDay(now);
   const tomorrowStart = addLocalDays(todayStart, 1);
-  const today = buildDailyReport(sessions, pricingByModel, { ...options, now }, todayStart, tomorrowStart);
+  const today = buildDailyReport(sessions, pricingByModel, { ...options, now, budgetPeriod: 'day' }, todayStart, tomorrowStart);
   const daily = Array.from({ length: 7 }, (_, index): DailyCostPoint => {
     const start = addLocalDays(todayStart, index - 6);
     const end = addLocalDays(start, 1);
