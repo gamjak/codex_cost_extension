@@ -26,5 +26,14 @@ export default tseslint.config(
         { checksVoidReturn: false }
       ]
     }
+  },
+  {
+    files: ['scripts/**/*.mjs'],
+    languageOptions: {
+      globals: {
+        console: 'readonly',
+        process: 'readonly'
+      }
+    }
   }
 );

@@ -91,6 +91,14 @@ describe('tooling configuration', () => {
     expect(workflow).toMatch(/pnpm run package --out codex-cost-extension\.vsix\s*\n\s*- run: pnpm run verify-package/);
   });
 
+  it('lints Node package tooling with its runtime globals', () => {
+    const eslintConfig = readText('eslint.config.mjs');
+
+    expect(eslintConfig).toContain("files: ['scripts/**/*.mjs']");
+    expect(eslintConfig).toContain("process: 'readonly'");
+    expect(eslintConfig).toContain("console: 'readonly'");
+  });
+
   it('keeps dependency updates bounded and weekly', () => {
     const dependabot = readText('.github/dependabot.yml');
 
