@@ -2,7 +2,7 @@
 
 Codex Cost is a local VS Code extension that estimates Codex usage cost from session logs stored on the current machine.
 
-> Cost values are estimates, not invoices. The bundled pricing snapshot was reviewed on 2026-07-10; verify and override it when pricing changes.
+> Cost values are estimates, not invoices. Verify and override the bundled pricing when it changes.
 
 ## What it does
 
@@ -105,37 +105,10 @@ Click a Codex Cost status item or run **Codex Cost: Open Cost Dashboard** to ope
 
 Run **Codex Cost: Open Cost Control** for a compact action menu, or **Codex Cost: Configure Daily Budget** to set a positive USD value for `codexCost.budget.dayAmount`. **Codex Cost: Copy Cost Summary** copies the current local workspace summary to the clipboard.
 
-## Local development
-
-1. Run `pnpm install`
-2. Run `pnpm run compile`
-3. Press `F5` in VS Code
-4. In the Extension Development Host, open the `Codex Cost` activity bar item
-
-Before opening a pull request, run:
-
-```sh
-pnpm run check
-pnpm run package
-```
-
 ## Installation from a VSIX
 
-1. Run `pnpm install --frozen-lockfile` and `pnpm run package`.
-2. In VS Code, choose **Extensions: Install from VSIX...** from the Command Palette.
-3. Select the generated `.vsix` file.
-
-## VS Code Marketplace release procedure
-
-Marketplace publication is deliberately manual. This repository does not automatically publish to the VS Code Marketplace.
-
-For each approved release:
-
-1. Create and approve the matching GitHub release and tag.
-2. Configure the repository's protected `marketplace` environment and add a `VSCE_PAT` secret there.
-3. Run **Publish to VS Code Marketplace** from the Actions tab and enter the approved release tag.
-
-The workflow packages and verifies that tag before calling the Marketplace. Do not run it for an unapproved or unreleased commit.
+1. In VS Code, choose **Extensions: Install from VSIX...** from the Command Palette.
+2. Select the Codex Cost `.vsix` file you received.
 
 ## Privacy and data access
 
