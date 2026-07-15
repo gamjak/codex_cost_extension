@@ -78,26 +78,54 @@ describe('tooling configuration', () => {
     expect(ignoredPaths).toContain('.superpowers/**');
   });
 
-  it('uses Node 24-based action majors while testing the project on Node 22', () => {
+  it('uses immutable action pins and cancels stale CI runs', () => {
     const workflow = readText('.github/workflows/ci.yml');
 
-    expect(countActiveWorkflowLines(workflow, /^\s*- uses: actions\/checkout@v7\s*$/)).toBe(2);
-    expect(countActiveWorkflowLines(workflow, /^\s*- uses: pnpm\/action-setup@v6\s*$/)).toBe(2);
-    expect(countActiveWorkflowLines(workflow, /^\s*- uses: actions\/setup-node@v7\s*$/)).toBe(2);
-    expect(countActiveWorkflowLines(workflow, /^\s*- uses: actions\/upload-artifact@v7\s*$/)).toBe(1);
+    expect(workflow).toContain('group: ${{ github.workflow }}-${{ github.ref }}');
+    expect(workflow).toContain('cancel-in-progress: true');
+    expect(countActiveWorkflowLines(workflow, /^\s*- uses: actions\/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0\s+# v7\s*$/)).toBe(2);
+    expect(countActiveWorkflowLines(workflow, /^\s*- uses: pnpm\/action-setup@0ebf47130e4866e96fce0953f49152a61190b271\s+# v6\s*$/)).toBe(2);
+    expect(countActiveWorkflowLines(workflow, /^\s*- uses: actions\/setup-node@820762786026740c76f36085b0efc47a31fe5020\s+# v7\s*$/)).toBe(2);
+    expect(countActiveWorkflowLines(workflow, /^\s*- uses: actions\/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a\s+# v7\s*$/)).toBe(1);
     expect(countActiveWorkflowLines(workflow, /^\s*node-version: 22\s*$/)).toBe(2);
-    expect(countActiveWorkflowLines(workflow, /^\s*- uses: \S+@v4\s*$/)).toBe(0);
+    expect(workflow).toMatch(/pnpm run package --out codex-cost-extension\.vsix\s*\n\s*- run: pnpm run verify-package/);
+  });
+
+  it('keeps dependency updates bounded and weekly', () => {
+    const dependabot = readText('.github/dependabot.yml');
+
+    expect(dependabot).toContain('package-ecosystem: github-actions');
+    expect(dependabot).toContain('package-ecosystem: npm');
+    expect(countActiveWorkflowLines(dependabot, /^\s*interval: weekly\s*$/)).toBe(2);
+    expect(countActiveWorkflowLines(dependabot, /^\s*open-pull-requests-limit: 5\s*$/)).toBe(2);
+  });
+
+  it('makes Marketplace publication manual, approved, and secret-scoped', () => {
+    const workflow = readText('.github/workflows/marketplace-publish.yml');
+
+    expect(workflow).toMatch(/^on:\s*\n\s*workflow_dispatch:/m);
+    expect(workflow).toContain('release_tag:');
+    expect(workflow).toMatch(/release_tag:\s*\n(?:.*\n)*?\s+required: true/m);
+    expect(workflow).toMatch(/^permissions:\s*\n\s+contents: read\s*$/m);
+    expect(workflow).toContain('environment: marketplace');
+    expect(workflow).toContain('ref: ${{ inputs.release_tag }}');
+    expect(workflow).toContain('actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7');
+    expect(workflow).toContain('pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6');
+    expect(workflow).toContain('actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7');
+    expect(workflow).toMatch(/pnpm run package --out codex-cost-extension\.vsix\s*\n\s*- run: pnpm run verify-package/);
+    expect(workflow).toMatch(/- name: Publish to VS Code Marketplace\s*\n\s+env:\s*\n\s+VSCE_PAT: \$\{\{ secrets\.VSCE_PAT \}\}\s*\n\s+run: pnpm exec vsce publish --packagePath codex-cost-extension\.vsix/m);
+    expect((workflow.match(/VSCE_PAT/g) ?? [])).toHaveLength(2);
   });
 
   it('does not treat comments or arbitrary text as active workflow steps', () => {
     const inactiveWorkflowText = [
-      '# - uses: actions/checkout@v7',
-      'description: actions/checkout@v7',
+      '# - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7',
+      'description: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7',
       '# node-version: 22',
       'description: node-version: 22'
     ].join('\n');
 
-    expect(countActiveWorkflowLines(inactiveWorkflowText, /^\s*- uses: actions\/checkout@v7\s*$/)).toBe(0);
+    expect(countActiveWorkflowLines(inactiveWorkflowText, /^\s*- uses: actions\/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0\s+# v7\s*$/)).toBe(0);
     expect(countActiveWorkflowLines(inactiveWorkflowText, /^\s*node-version: 22\s*$/)).toBe(0);
   });
 });
