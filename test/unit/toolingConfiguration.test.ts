@@ -39,9 +39,10 @@ describe('tooling configuration', () => {
     ]);
   });
 
-  it('keeps the Vitest config out of the extension package', () => {
+  it('keeps local tooling artifacts out of the extension package', () => {
     const ignoredPaths = readText('.vscodeignore').split(/\r?\n/);
     expect(ignoredPaths).toContain('vitest.config.ts');
+    expect(ignoredPaths).toContain('.superpowers/**');
   });
 
   it('uses Node 24-based action majors while testing the project on Node 22', () => {

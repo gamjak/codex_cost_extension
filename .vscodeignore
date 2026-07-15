@@ -4,6 +4,7 @@
 .local/**
 .local-bin/**
 .pnpm-home/**
+.superpowers/**
 .vscode/**
 docs/**
 src/**
