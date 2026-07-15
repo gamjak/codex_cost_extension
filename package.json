@@ -297,7 +297,7 @@
     "@types/vscode": "1.96.0",
     "@vscode/vsce": "^3.9.2",
     "eslint": "^10.6.0",
-    "typescript": "^5.8.3",
+    "typescript": "^7.0.2",
     "typescript-eslint": "^8.63.0",
     "vitest": "^2.1.8"
   }
