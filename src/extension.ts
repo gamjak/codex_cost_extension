@@ -4,6 +4,7 @@ import { createAutoRefreshController } from './autoRefreshController';
 import { BudgetNotificationController } from './budgetNotificationController';
 import { readExtensionConfig } from './config';
 import { createPeriodBoundaryController } from './periodBoundaryController';
+import { CostDashboard } from './view/costDashboard';
 import { buildCostControlQuickPickPlaceholder } from './view/costControlPresentation';
 import { CodexCostTreeProvider } from './view/costTreeProvider';
 
@@ -33,10 +34,20 @@ export function activate(context: vscode.ExtensionContext): void {
   };
   const autoRefreshController = createAutoRefreshController(() => refreshAndNotify());
   const periodBoundaryController = createPeriodBoundaryController(() => refreshAndNotify());
+  const dashboard = new CostDashboard({
+    refresh: refreshAndNotify,
+    configureDailyBudget: async () => {
+      await vscode.commands.executeCommand('codexCost.configureDailyBudget');
+    },
+    copySummary: async () => {
+      await vscode.commands.executeCommand('codexCost.copySummary');
+    }
+  });
 
   context.subscriptions.push(vscode.window.registerTreeDataProvider('codexCost.usage', provider));
   context.subscriptions.push(autoRefreshController);
   context.subscriptions.push(periodBoundaryController);
+  context.subscriptions.push(dashboard);
 
   context.subscriptions.push(
     vscode.commands.registerCommand('codexCost.refresh', async () => {
@@ -106,6 +117,19 @@ export function activate(context: vscode.ExtensionContext): void {
       await provider.copySummary();
     })
   );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('codexCost.openDashboard', async () => {
+      let control = provider.getLatestCostControl();
+      if (!control) {
+        await refreshAndNotify();
+        control = provider.getLatestCostControl();
+      }
+      if (control) dashboard.show(control);
+    })
+  );
+
+  provider.setDashboardUpdater((control) => dashboard.update(control));
 
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration(async (event) => {
