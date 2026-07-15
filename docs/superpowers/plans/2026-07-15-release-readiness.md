@@ -81,10 +81,9 @@ git commit -m "build: separate runtime output from test checks"
 - [ ] **Step 1: Write a failing test for the forbidden-path contract**
 
 ```ts
-expect(packageVerification.forbiddenPrefixes).toEqual([
-  'out/test/', 'out/vitest.config.', 'docs/', '.github/', '.vscode/',
-  'test/', 'work/', '.superpowers/'
-]);
+const result = spawnSync(process.execPath, ['scripts/verify-package.mjs', '--paths', 'out/src/extension.js', 'out/test/example.js']);
+expect(result.status).toBe(1);
+expect(result.stderr).toContain('out/test/example.js');
 ```
 
 - [ ] **Step 2: Run focused test and verify RED**
@@ -95,7 +94,7 @@ Expected: FAIL because the package verifier module does not exist.
 
 - [ ] **Step 3: Implement portable verification**
 
-Export `forbiddenPrefixes` and `assertPackageContents(paths)` from `scripts/verify-package.mjs`. When executed directly, invoke `pnpm exec vsce ls` with `spawnSync`, split stdout into normalized POSIX paths, call the assertion, and throw an Error that lists each forbidden path. Add `verify:package` to `package.json`; add `scripts/**` and `tsconfig.build.json` to `.vscodeignore`.
+Implement `scripts/verify-package.mjs` with a `--paths` test mode that validates the remaining command-line paths. In normal mode invoke `pnpm exec vsce ls` with `spawnSync`, split stdout into normalized POSIX paths, reject `out/test/`, `out/vitest.config.`, `docs/`, `.github/`, `.vscode/`, `test/`, `work/`, and `.superpowers/`, and throw an Error that lists each forbidden path. Add `verify:package` to `package.json`; add `scripts/**` and `tsconfig.build.json` to `.vscodeignore`.
 
 - [ ] **Step 4: Run focused test and verify GREEN**
 
