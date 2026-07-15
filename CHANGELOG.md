@@ -4,6 +4,10 @@ All notable changes to Codex Cost are documented here.
 
 ## Unreleased
 
+## 0.3.1 - 2026-07-15
+
+- Correct the Visual Studio Marketplace publisher ID to `gamjak`.
+
 ## 0.3.0 - 2026-07-15
 
 - Make cross-platform CI and extension-package validation reliable and explicit.

@@ -4,6 +4,8 @@ import * as path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 interface Manifest {
+  publisher: string;
+  version: string;
   main: string;
   activationEvents: string[];
   contributes: {
@@ -13,6 +15,15 @@ interface Manifest {
 }
 
 describe('VS Code manifest', () => {
+  it('uses the correct Marketplace publisher and release version', () => {
+    const manifest = JSON.parse(
+      fs.readFileSync(path.resolve('package.json'), 'utf8')
+    ) as Manifest;
+
+    expect(manifest.publisher).toBe('gamjak');
+    expect(manifest.version).toBe('0.3.1');
+  });
+
   it('keeps contributed commands, activation events, and safe defaults aligned', () => {
     const manifest = JSON.parse(
       fs.readFileSync(path.resolve('package.json'), 'utf8')
