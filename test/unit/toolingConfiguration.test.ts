@@ -40,4 +40,15 @@ describe('tooling configuration', () => {
     const ignoredPaths = readText('.vscodeignore').split(/\r?\n/);
     expect(ignoredPaths).toContain('vitest.config.ts');
   });
+
+  it('uses Node 24-based action majors while testing the project on Node 22', () => {
+    const workflow = readText('.github/workflows/ci.yml');
+
+    expect(workflow.match(/actions\/checkout@v7/g) ?? []).toHaveLength(2);
+    expect(workflow.match(/pnpm\/action-setup@v6/g) ?? []).toHaveLength(2);
+    expect(workflow.match(/actions\/setup-node@v7/g) ?? []).toHaveLength(2);
+    expect(workflow).toContain('actions/upload-artifact@v7');
+    expect(workflow.match(/node-version: 22/g) ?? []).toHaveLength(2);
+    expect(workflow).not.toContain('@v4');
+  });
 });
