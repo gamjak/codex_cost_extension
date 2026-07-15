@@ -143,7 +143,7 @@ describe('tooling configuration', () => {
     const featureTemplate = readText('.github/ISSUE_TEMPLATE/feature-request.yml');
     const pullRequestTemplate = readText('.github/pull_request_template.md');
 
-    expect(manifest.version).toBe('0.3.0');
+    expect(manifest.version).toBe('0.3.1');
     expect(changelog).toContain('## 0.3.0 - 2026-07-15');
     expect(changelog).toContain('does not automatically publish to the VS Code Marketplace');
     expect(contributing).toContain('pnpm install --frozen-lockfile');
