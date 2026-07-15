@@ -14,6 +14,9 @@ Codex Cost is a local VS Code extension that estimates Codex usage cost from ses
 - Can hide older usage with a fixed start date
 - Can track day, week, or month budgets in the VS Code status bar
 - Shows one warning at the configured budget threshold and one when the budget is exceeded
+- Shows today's workspace spend, daily budget, remaining budget, and end-of-day projection
+- Opens a local editor dashboard with seven-day spend, model costs, and recent sessions
+- Offers direct actions to configure the daily budget and copy a cost summary
 - Refreshes the sidebar and status bar automatically based on a configurable interval
 - Caches unchanged session files so recurring refreshes only parse new or modified logs
 
@@ -91,6 +94,14 @@ You can configure the fixed filter, budgets, and visible status bar items in VS 
   - `week` = current week starting on Monday
   - `month` = current month
 - Budget notifications are enabled by default and are shown once per threshold and calendar period. Set `codexCost.budget.notifications.enabled` to `false` to disable them. The keys persist across VS Code restarts and reset automatically when the next day, week, or month begins. Notifications are skipped when pricing gaps prevent a reliable estimate.
+
+## Daily cost control
+
+The budget status item focuses on today's workspace estimate. With a daily budget configured, it shows spend, budget, and an `On track`, `Watch`, or `Over budget` state. The projection estimates end-of-day cost from usage so far; it is omitted when no priced usage is available. Values remain API-equivalent estimates, not billed cost.
+
+Click a Codex Cost status item or run **Codex Cost: Open Cost Dashboard** to open the editor dashboard. It shows the daily control, seven local calendar days of spending, per-model cost, and recent sessions. Everything is calculated from local logs.
+
+Run **Codex Cost: Open Cost Control** for a compact action menu, or **Codex Cost: Configure Daily Budget** to set a positive USD value for `codexCost.budget.dayAmount`. **Codex Cost: Copy Cost Summary** copies the current local workspace summary to the clipboard.
 
 ## Local development
 
