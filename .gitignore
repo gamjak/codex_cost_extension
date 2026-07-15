@@ -6,3 +6,4 @@ out/
 .local/
 .local-bin/
 .pnpm-home/
+.worktrees/

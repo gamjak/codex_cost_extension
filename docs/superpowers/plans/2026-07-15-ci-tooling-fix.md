@@ -298,4 +298,4 @@ pnpm run check
 git status --short --branch
 ```
 
-Expected: 15 test files and 45 tests pass, and the branch is clean with four local commits ahead of `origin/main` (design, implementation plan, cross-platform Vitest fix, action upgrades).
+Expected: 15 test files and 45 tests pass, and the branch is clean with five local commits ahead of `origin/main` (design, implementation plan, worktree preparation, cross-platform Vitest fix, action upgrades).
