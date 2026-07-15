@@ -117,6 +117,36 @@ describe('tooling configuration', () => {
     expect((workflow.match(/VSCE_PAT/g) ?? [])).toHaveLength(2);
   });
 
+  it('documents the supported release, contribution, security, and GitHub intake paths', () => {
+    const manifest = readManifest() as ToolingManifest & { version: string };
+    const changelog = readText('CHANGELOG.md');
+    const readme = readText('README.md');
+    const contributing = readText('CONTRIBUTING.md');
+    const security = readText('SECURITY.md');
+    const bugTemplate = readText('.github/ISSUE_TEMPLATE/bug-report.yml');
+    const featureTemplate = readText('.github/ISSUE_TEMPLATE/feature-request.yml');
+    const pullRequestTemplate = readText('.github/pull_request_template.md');
+
+    expect(manifest.version).toBe('0.3.0');
+    expect(changelog).toContain('## 0.3.0 - 2026-07-15');
+    expect(changelog).toContain('does not automatically publish to the VS Code Marketplace');
+    expect(contributing).toContain('pnpm install --frozen-lockfile');
+    expect(contributing).toContain('pnpm run verify-package');
+    expect(contributing).toContain('Conventional Commits');
+    expect(security).toContain('private vulnerability reporting');
+    expect(security).toContain('0.3.x');
+    expect(security).toContain('five business days');
+    expect(readme).toContain('does not automatically publish to the VS Code Marketplace');
+    expect(readme).toContain('Publish to VS Code Marketplace');
+    expect(readme).toContain('VSCE_PAT');
+    expect(bugTemplate).toContain('name: Bug report');
+    expect(bugTemplate).toContain('validations:');
+    expect(featureTemplate).toContain('name: Feature request');
+    expect(featureTemplate).toContain('validations:');
+    expect(pullRequestTemplate).toContain('pnpm run verify-package');
+    expect(pullRequestTemplate).toContain('No secrets');
+  });
+
   it('does not treat comments or arbitrary text as active workflow steps', () => {
     const inactiveWorkflowText = [
       '# - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7',

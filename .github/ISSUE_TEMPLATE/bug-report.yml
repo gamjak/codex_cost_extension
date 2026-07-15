@@ -1,0 +1,50 @@
+name: Bug report
+description: Report a reproducible problem in Codex Cost.
+title: "bug: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please remove secrets, access tokens, and private session-log contents before submitting.
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the observed behavior and its impact.
+      placeholder: The sidebar total remains empty after refresh.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Give the smallest reliable sequence of steps.
+      placeholder: |
+        1. Open a workspace with Codex session logs.
+        2. Run Codex Cost: Refresh.
+        3. Observe the sidebar.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: Tell us what you expected instead.
+    validations:
+      required: true
+  - type: input
+    id: extension-version
+    attributes:
+      label: Codex Cost version
+      placeholder: 0.3.0
+    validations:
+      required: true
+  - type: input
+    id: vscode-version
+    attributes:
+      label: VS Code version and operating system
+      placeholder: VS Code 1.96.0 on Windows 11
+    validations:
+      required: true

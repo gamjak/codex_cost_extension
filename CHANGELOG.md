@@ -4,6 +4,13 @@ All notable changes to Codex Cost are documented here.
 
 ## Unreleased
 
+## 0.3.0 - 2026-07-15
+
+- Make cross-platform CI and extension-package validation reliable and explicit.
+- Verify that Marketplace artifacts exclude development and repository-only files.
+- Pin GitHub Actions to immutable revisions and add bounded weekly Dependabot updates.
+- Prepare a manual, approval-gated VS Code Marketplace publishing workflow; this repository does not automatically publish to the VS Code Marketplace.
+
 - Enable configured budget warnings by default; set `codexCost.budget.notifications.enabled` to `false` to disable them.
 - Make budget alerts persistent, localized, and actionable.
 - Add source filtering, duplicate-session protection, locale-aware model matching, and period-boundary refreshes.

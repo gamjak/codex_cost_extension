@@ -1,0 +1,37 @@
+name: Feature request
+description: Suggest a focused improvement for Codex Cost.
+title: "feature: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: Describe the user need or workflow gap.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Explain the behavior or interface you would like to see.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Describe workarounds or other approaches, if any.
+    validations:
+      required: true
+  - type: dropdown
+    id: contribution
+    attributes:
+      label: Would you like to contribute it?
+      options:
+        - I can help implement it.
+        - I can help test or refine it.
+        - I am requesting it only.
+    validations:
+      required: true
