@@ -1,8 +1,8 @@
 const requiredPaths = [
   'extension/out/src/extension.js',
   'extension/package.json',
-  'extension/README.md',
-  'extension/LICENSE',
+  'extension/readme.md',
+  'extension/LICENSE.txt',
   'extension/package.nls.de.json'
 ];
 

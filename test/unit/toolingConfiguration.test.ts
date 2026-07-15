@@ -143,7 +143,7 @@ describe('tooling configuration', () => {
     expect((workflow.match(/VSCE_PAT/g) ?? [])).toHaveLength(2);
   });
 
-  it('documents the supported release, contribution, security, and GitHub intake paths', () => {
+  it('keeps the readme focused on extension use while documenting contributor and security paths separately', () => {
     const manifest = readManifest() as ToolingManifest & { version: string };
     const changelog = readText('CHANGELOG.md');
     const readme = readText('README.md');
@@ -162,9 +162,11 @@ describe('tooling configuration', () => {
     expect(security).toContain('private vulnerability reporting');
     expect(security).toContain('0.3.x');
     expect(security).toContain('five business days');
-    expect(readme).toContain('does not automatically publish to the VS Code Marketplace');
-    expect(readme).toContain('Publish to VS Code Marketplace');
-    expect(readme).toContain('VSCE_PAT');
+    expect(readme).toContain('Installation from a VSIX');
+    expect(readme).toContain('Privacy and data access');
+    expect(readme).not.toContain('Local development');
+    expect(readme).not.toContain('Publish to VS Code Marketplace');
+    expect(readme).not.toContain('VSCE_PAT');
     expect(bugTemplate).toContain('name: Bug report');
     expect(bugTemplate).toContain('validations:');
     expect(featureTemplate).toContain('name: Feature request');

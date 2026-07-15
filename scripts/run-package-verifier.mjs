@@ -1,63 +1,70 @@
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 
-const vsceCommand = process.platform === 'win32' ? 'vsce.cmd' : 'vsce';
-const vsceResult = spawnSync(vsceCommand, ['ls', '--tree'], {
-  encoding: 'utf8',
-  shell: process.platform === 'win32'
-});
+const endOfCentralDirectorySignature = 0x06054b50;
+const centralDirectorySignature = 0x02014b50;
 
-if (vsceResult.error) {
-  console.error(`Unable to run vsce ls --tree: ${vsceResult.error.message}`);
-  process.exit(1);
+function packagePathFromArguments(argumentsAfterNode) {
+  const packagePathIndex = argumentsAfterNode.indexOf('--package-path');
+  if (packagePathIndex === -1) {
+    return 'codex-cost-extension.vsix';
+  }
+
+  const packagePath = argumentsAfterNode[packagePathIndex + 1];
+  if (!packagePath) {
+    throw new Error('expected a VSIX path after --package-path.');
+  }
+
+  return packagePath;
 }
 
-if (vsceResult.status !== 0) {
-  process.stderr.write(vsceResult.stderr);
-  process.exit(vsceResult.status ?? 1);
+function findEndOfCentralDirectory(archive) {
+  const searchStart = Math.max(0, archive.length - 0xffff - 22);
+  for (let offset = archive.length - 22; offset >= searchStart; offset -= 1) {
+    if (archive.readUInt32LE(offset) === endOfCentralDirectorySignature) {
+      return offset;
+    }
+  }
+
+  throw new Error('the file is not a supported ZIP archive.');
 }
 
-function treeOutputToPaths(treeOutput) {
+function readVsixPaths(packagePath) {
+  const archive = readFileSync(packagePath);
+  const endOfCentralDirectoryOffset = findEndOfCentralDirectory(archive);
+  const entryCount = archive.readUInt16LE(endOfCentralDirectoryOffset + 10);
+  const centralDirectoryOffset = archive.readUInt32LE(endOfCentralDirectoryOffset + 16);
   const paths = [];
-  const segments = [];
+  let offset = centralDirectoryOffset;
 
-  for (const rawLine of treeOutput.split(/\r?\n/)) {
-    const line = rawLine.trimEnd();
-    if (!line) {
-      continue;
+  for (let entry = 0; entry < entryCount; entry += 1) {
+    if (archive.readUInt32LE(offset) !== centralDirectorySignature) {
+      throw new Error('the ZIP central directory is invalid.');
     }
 
-    if (line.startsWith('extension/')) {
-      paths.push(line);
-      continue;
-    }
-
-    if (line === 'extension') {
-      continue;
-    }
-
-    const markerIndex = line.search(/[├└]/u);
-    const nameMatch = line.match(/[├└][─-]+\s*(.+)$/u);
-    if (markerIndex === -1 || !nameMatch) {
-      continue;
-    }
-
-    const depth = Math.floor(markerIndex / 3);
-    segments.length = depth;
-    const entryName = nameMatch[1].replace(/\s+\[[^\]]+\]$/, '').replace(/\/$/, '');
-    segments.push(entryName);
-    paths.push(['extension', ...segments].join('/'));
+    const nameLength = archive.readUInt16LE(offset + 28);
+    const extraLength = archive.readUInt16LE(offset + 30);
+    const commentLength = archive.readUInt16LE(offset + 32);
+    const nameOffset = offset + 46;
+    paths.push(archive.toString('utf8', nameOffset, nameOffset + nameLength).replace(/\\/g, '/'));
+    offset = nameOffset + nameLength + extraLength + commentLength;
   }
 
   return paths;
 }
 
-const verifierResult = spawnSync(process.execPath, ['scripts/verify-package.mjs', '--paths', ...treeOutputToPaths(vsceResult.stdout)], {
-  encoding: 'utf8'
-});
+try {
+  const packagePath = packagePathFromArguments(process.argv.slice(2));
+  const packagePaths = readVsixPaths(packagePath);
+  const verifierResult = spawnSync(process.execPath, ['scripts/verify-package.mjs', '--paths', ...packagePaths], {
+    encoding: 'utf8'
+  });
 
-process.stdout.write(verifierResult.stdout);
-process.stderr.write(verifierResult.stderr);
-if (verifierResult.status !== 0) {
-  process.stderr.write(`VSIX package tree:\n${vsceResult.stdout}`);
+  process.stdout.write(verifierResult.stdout);
+  process.stderr.write(verifierResult.stderr);
+  process.exit(verifierResult.status ?? 1);
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(`Unable to verify VSIX package: ${message}`);
+  process.exit(1);
 }
-process.exit(verifierResult.status ?? 1);
