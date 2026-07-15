@@ -282,8 +282,8 @@
     }
   },
   "scripts": {
-    "compile": "tsc -p ./",
-    "check": "tsc -p ./ && eslint . && vitest run",
+    "compile": "tsc -p tsconfig.build.json",
+    "check": "tsc -p tsconfig.json --noEmit && eslint . && vitest run",
     "lint": "eslint .",
     "package": "vsce package --no-dependencies",
     "watch": "tsc -watch -p ./",

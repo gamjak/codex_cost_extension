@@ -6,6 +6,7 @@ import vitestConfig from '../../vitest.config';
 
 interface ToolingManifest {
   scripts: {
+    compile: string;
     check: string;
     test: string;
     'vscode:prepublish': string;
@@ -20,15 +21,20 @@ function readManifest(): ToolingManifest {
   return JSON.parse(readText('package.json')) as ToolingManifest;
 }
 
+function readJson(relativePath: string): unknown {
+  return JSON.parse(readText(relativePath));
+}
+
 function countActiveWorkflowLines(workflow: string, line: RegExp): number {
   return workflow.split(/\r?\n/).filter((candidate) => line.test(candidate)).length;
 }
 
 describe('tooling configuration', () => {
-  it('centralizes Vitest exclusions outside shell commands', () => {
+  it('separates runtime compilation from type checking and tests', () => {
     const scripts = readManifest().scripts;
 
-    expect(scripts.check).toBe('tsc -p ./ && eslint . && vitest run');
+    expect(scripts.compile).toBe('tsc -p tsconfig.build.json');
+    expect(scripts.check).toBe('tsc -p tsconfig.json --noEmit && eslint . && vitest run');
     expect(scripts.test).toBe('vitest run');
     expect(scripts['vscode:prepublish']).toBe('tsc -p ./ && eslint . && vitest run');
 
@@ -37,6 +43,31 @@ describe('tooling configuration', () => {
       'node_modules/**',
       '.vscode-test/**'
     ]);
+  });
+
+  it('emits only extension source files in the runtime build configuration', () => {
+    expect(fs.existsSync(path.resolve('tsconfig.build.json'))).toBe(true);
+
+    const buildConfig = readJson('tsconfig.build.json') as {
+      extends: string;
+      compilerOptions: Record<string, unknown>;
+      include: string[];
+      exclude: string[];
+    };
+
+    expect(buildConfig.extends).toBe('./tsconfig.json');
+    expect(buildConfig.compilerOptions).toMatchObject({
+      outDir: 'out',
+      rootDir: '.',
+      noEmit: false
+    });
+    expect(buildConfig.include).toEqual(['src/**/*.ts']);
+    expect(buildConfig.exclude).toEqual(['node_modules', 'out', 'test', '.vscode-test']);
+
+    const checkConfig = readJson('tsconfig.json') as {
+      compilerOptions: Record<string, unknown>;
+    };
+    expect(checkConfig.compilerOptions.noEmit).toBe(true);
   });
 
   it('keeps local tooling artifacts out of the extension package', () => {
