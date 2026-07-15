@@ -17,5 +17,6 @@ out/**/*.map
 pnpm-lock.yaml
 pnpm-workspace.yaml
 tsconfig.json
+vitest.config.ts
 *.vsix
 work/**
