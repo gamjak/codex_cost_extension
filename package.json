@@ -297,6 +297,12 @@
           "default": true,
           "description": "Show one warning when the selected workspace budget reaches its threshold and one when it is exceeded. Enabled by default."
         },
+        "codexCost.budget.notifications.everyAmount": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "description": "Show one local notification whenever workspace spending reaches another configured USD amount in the active budget period. Set to 0 to disable recurring spend notifications."
+        },
         "codexCost.budget.warningPercent": {
           "type": "number",
           "default": 80,

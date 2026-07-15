@@ -30,7 +30,10 @@ export function activate(context: vscode.ExtensionContext): void {
   const refreshAndNotify = async (): Promise<void> => {
     await provider.refresh();
     const status = provider.getLatestBudgetStatus();
-    if (readExtensionConfig().budgetNotificationsEnabled && status) budgetNotifications.notify(status, new Date());
+    const configuration = readExtensionConfig();
+    if (configuration.budgetNotificationsEnabled && status) {
+      budgetNotifications.notify(status, new Date(), configuration.budgetNotificationEveryAmount);
+    }
   };
   const autoRefreshController = createAutoRefreshController(() => refreshAndNotify());
   const periodBoundaryController = createPeriodBoundaryController(() => refreshAndNotify());

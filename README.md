@@ -70,6 +70,7 @@ You can configure the fixed filter, budgets, and visible status bar items in VS 
   "codexCost.budget.weekAmount": 100,
   "codexCost.budget.monthAmount": 500,
   "codexCost.budget.notifications.enabled": true,
+  "codexCost.budget.notifications.everyAmount": 5,
   "codexCost.budget.warningPercent": 80,
   "codexCost.statusBar.showSession": true,
   "codexCost.statusBar.showWorkspace": true,
@@ -87,6 +88,7 @@ You can configure the fixed filter, budgets, and visible status bar items in VS 
 - This is intentional: daily, weekly, and monthly limits are usually different, so one single amount field would have to be changed every time you switch periods.
 - `codexCost.statusBar.showBudget` only shows or hides the budget item. It does not enable or disable the budget values themselves.
 - `codexCost.budget.notifications.enabled` is `true` by default. Set it to `false` to disable notifications.
+- `codexCost.budget.notifications.everyAmount` optionally adds one notification whenever spend reaches another X USD in the active budget period. For example, `5` notifies at $5, $10, $15, and so on. Set it to `0` to disable these recurring spend notifications.
 - Budget windows are calendar-based and ignore the fixed date filter, but respect the active report scope:
   - the status-bar budget covers the current workspace
   - the sidebar budget covers either the current workspace or all sessions, depending on the selected scope
