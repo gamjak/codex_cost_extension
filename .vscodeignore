@@ -4,6 +4,7 @@
 .local/**
 .local-bin/**
 .pnpm-home/**
+.superpowers/**
 .vscode/**
 docs/**
 src/**
@@ -17,5 +18,6 @@ out/**/*.map
 pnpm-lock.yaml
 pnpm-workspace.yaml
 tsconfig.json
+vitest.config.ts
 *.vsix
 work/**

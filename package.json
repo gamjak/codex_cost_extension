@@ -283,12 +283,12 @@
   },
   "scripts": {
     "compile": "tsc -p ./",
-    "check": "tsc -p ./ && eslint . && vitest run --exclude out/** --exclude .vscode-test/**",
+    "check": "tsc -p ./ && eslint . && vitest run",
     "lint": "eslint .",
     "package": "vsce package --no-dependencies",
     "watch": "tsc -watch -p ./",
-    "test": "vitest run --exclude out/** --exclude .vscode-test/**",
-    "vscode:prepublish": "tsc -p ./ && eslint . && vitest run --exclude out/** --exclude .vscode-test/**"
+    "test": "vitest run",
+    "vscode:prepublish": "tsc -p ./ && eslint . && vitest run"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
