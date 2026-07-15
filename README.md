@@ -112,6 +112,18 @@ pnpm run package
 2. In VS Code, choose **Extensions: Install from VSIX...** from the Command Palette.
 3. Select the generated `.vsix` file.
 
+## VS Code Marketplace release procedure
+
+Marketplace publication is deliberately manual. This repository does not automatically publish to the VS Code Marketplace.
+
+For each approved release:
+
+1. Create and approve the matching GitHub release and tag.
+2. Configure the repository's protected `marketplace` environment and add a `VSCE_PAT` secret there.
+3. Run **Publish to VS Code Marketplace** from the Actions tab and enter the approved release tag.
+
+The workflow packages and verifies that tag before calling the Marketplace. Do not run it for an unapproved or unreleased commit.
+
 ## Privacy and data access
 
 - Session logs are read locally and are never uploaded by this extension.
