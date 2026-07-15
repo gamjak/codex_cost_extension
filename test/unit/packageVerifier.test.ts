@@ -21,7 +21,8 @@ function verifyPackage(paths: string[]) {
 function runPackageVerifier() {
   return spawnSync(process.execPath, ['scripts/run-package-verifier.mjs'], {
     cwd: path.resolve('.'),
-    encoding: 'utf8'
+    encoding: 'utf8',
+    timeout: 10_000
   });
 }
 
