@@ -2,7 +2,7 @@
 
 All notable changes to Codex Cost are documented here.
 
-## Unreleased
+## 0.4.0 - 2026-07-15
 
 - Add a native daily cost-control loop with spend, daily budget, remaining budget, and end-of-day projection.
 - Add direct status-bar, sidebar, Quick Pick, and clipboard actions for daily cost control.
