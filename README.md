@@ -2,7 +2,7 @@
 
 Codex Cost is a local VS Code extension that estimates Codex usage cost from session logs stored on the current machine.
 
-> Cost values are estimates, not invoices. The bundled pricing snapshot was reviewed on 2026-07-10; verify and override it when pricing changes.
+> Cost values are estimates, not invoices. Verify and override the bundled pricing when it changes.
 
 ## What it does
 
@@ -14,6 +14,9 @@ Codex Cost is a local VS Code extension that estimates Codex usage cost from ses
 - Can hide older usage with a fixed start date
 - Can track day, week, or month budgets in the VS Code status bar
 - Shows one warning at the configured budget threshold and one when the budget is exceeded
+- Shows today's workspace spend, daily budget, remaining budget, and end-of-day projection
+- Opens a local editor dashboard with seven-day spend, model costs, and recent sessions
+- Offers direct actions to configure the daily budget and copy a cost summary
 - Refreshes the sidebar and status bar automatically based on a configurable interval
 - Caches unchanged session files so recurring refreshes only parse new or modified logs
 
@@ -67,6 +70,7 @@ You can configure the fixed filter, budgets, and visible status bar items in VS 
   "codexCost.budget.weekAmount": 100,
   "codexCost.budget.monthAmount": 500,
   "codexCost.budget.notifications.enabled": true,
+  "codexCost.budget.notifications.everyAmount": 5,
   "codexCost.budget.warningPercent": 80,
   "codexCost.statusBar.showSession": true,
   "codexCost.statusBar.showWorkspace": true,
@@ -84,6 +88,7 @@ You can configure the fixed filter, budgets, and visible status bar items in VS 
 - This is intentional: daily, weekly, and monthly limits are usually different, so one single amount field would have to be changed every time you switch periods.
 - `codexCost.statusBar.showBudget` only shows or hides the budget item. It does not enable or disable the budget values themselves.
 - `codexCost.budget.notifications.enabled` is `true` by default. Set it to `false` to disable notifications.
+- `codexCost.budget.notifications.everyAmount` optionally adds one notification whenever spend reaches another X USD in the active budget period. For example, `5` notifies at $5, $10, $15, and so on. Set it to `0` to disable these recurring spend notifications.
 - Budget windows are calendar-based and ignore the fixed date filter, but respect the active report scope:
   - the status-bar budget covers the current workspace
   - the sidebar budget covers either the current workspace or all sessions, depending on the selected scope
@@ -92,37 +97,18 @@ You can configure the fixed filter, budgets, and visible status bar items in VS 
   - `month` = current month
 - Budget notifications are enabled by default and are shown once per threshold and calendar period. Set `codexCost.budget.notifications.enabled` to `false` to disable them. The keys persist across VS Code restarts and reset automatically when the next day, week, or month begins. Notifications are skipped when pricing gaps prevent a reliable estimate.
 
-## Local development
+## Daily cost control
 
-1. Run `pnpm install`
-2. Run `pnpm run compile`
-3. Press `F5` in VS Code
-4. In the Extension Development Host, open the `Codex Cost` activity bar item
+The budget status item focuses on today's workspace estimate. With a daily budget configured, it shows spend, budget, and an `On track`, `Watch`, or `Over budget` state. The projection estimates end-of-day cost from usage so far; it is omitted when no priced usage is available. Values remain API-equivalent estimates, not billed cost.
 
-Before opening a pull request, run:
+Click a Codex Cost status item or run **Codex Cost: Open Cost Dashboard** to open the editor dashboard. It shows the daily control, seven local calendar days of spending, per-model cost, and recent sessions. Everything is calculated from local logs.
 
-```sh
-pnpm run check
-pnpm run package
-```
+Run **Codex Cost: Open Cost Control** for a compact action menu, or **Codex Cost: Configure Daily Budget** to set a positive USD value for `codexCost.budget.dayAmount`. **Codex Cost: Copy Cost Summary** copies the current local workspace summary to the clipboard.
 
 ## Installation from a VSIX
 
-1. Run `pnpm install --frozen-lockfile` and `pnpm run package`.
-2. In VS Code, choose **Extensions: Install from VSIX...** from the Command Palette.
-3. Select the generated `.vsix` file.
-
-## VS Code Marketplace release procedure
-
-Marketplace publication is deliberately manual. This repository does not automatically publish to the VS Code Marketplace.
-
-For each approved release:
-
-1. Create and approve the matching GitHub release and tag.
-2. Configure the repository's protected `marketplace` environment and add a `VSCE_PAT` secret there.
-3. Run **Publish to VS Code Marketplace** from the Actions tab and enter the approved release tag.
-
-The workflow packages and verifies that tag before calling the Marketplace. Do not run it for an unapproved or unreleased commit.
+1. In VS Code, choose **Extensions: Install from VSIX...** from the Command Palette.
+2. Select the Codex Cost `.vsix` file you received.
 
 ## Privacy and data access
 

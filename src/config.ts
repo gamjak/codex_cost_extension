@@ -14,6 +14,7 @@ export interface ExtensionConfig {
   filterStartDate: string;
   budgetSettings: BudgetSettings;
   budgetNotificationsEnabled: boolean;
+  budgetNotificationEveryAmount: number;
   statusBarVisibility: StatusBarVisibility;
   statusBarBudgetPeriod: BudgetPeriod;
 }
@@ -132,6 +133,9 @@ export function readExtensionConfig(): ExtensionConfig {
     configuration.get<boolean>('budget.notifications.enabled', true),
     true
   );
+  const budgetNotificationEveryAmount = normalizePositiveNumber(
+    configuration.get<number>('budget.notifications.everyAmount', 0)
+  );
   const statusBarVisibility: StatusBarVisibility = {
     showSession: normalizeBoolean(configuration.get<boolean>('statusBar.showSession', true), true),
     showWorkspace: normalizeBoolean(configuration.get<boolean>('statusBar.showWorkspace', true), true),
@@ -148,6 +152,7 @@ export function readExtensionConfig(): ExtensionConfig {
     filterStartDate,
     budgetSettings,
     budgetNotificationsEnabled,
+    budgetNotificationEveryAmount,
     statusBarVisibility,
     statusBarBudgetPeriod
   };

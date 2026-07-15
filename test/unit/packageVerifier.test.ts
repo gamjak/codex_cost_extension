@@ -1,4 +1,6 @@
 import { spawnSync } from 'node:child_process';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -6,8 +8,8 @@ import { describe, expect, it } from 'vitest';
 const requiredPackagePaths = [
   'extension/out/src/extension.js',
   'extension/package.json',
-  'extension/README.md',
-  'extension/LICENSE',
+  'extension/readme.md',
+  'extension/LICENSE.txt',
   'extension/package.nls.de.json'
 ];
 
@@ -18,12 +20,64 @@ function verifyPackage(paths: string[]) {
   });
 }
 
+function createEmptyZip(entries: string[]) {
+  const localEntries: Buffer[] = [];
+  const centralEntries: Buffer[] = [];
+  let localOffset = 0;
+
+  for (const entry of entries) {
+    const name = Buffer.from(entry, 'utf8');
+    const localHeader = Buffer.alloc(30);
+    localHeader.writeUInt32LE(0x04034b50, 0);
+    localHeader.writeUInt16LE(20, 4);
+    localHeader.writeUInt16LE(name.length, 26);
+    localEntries.push(localHeader, name);
+
+    const centralHeader = Buffer.alloc(46);
+    centralHeader.writeUInt32LE(0x02014b50, 0);
+    centralHeader.writeUInt16LE(20, 4);
+    centralHeader.writeUInt16LE(20, 6);
+    centralHeader.writeUInt16LE(name.length, 28);
+    centralHeader.writeUInt32LE(localOffset, 42);
+    centralEntries.push(centralHeader, name);
+    localOffset += localHeader.length + name.length;
+  }
+
+  const centralDirectory = Buffer.concat(centralEntries);
+  const endOfCentralDirectory = Buffer.alloc(22);
+  endOfCentralDirectory.writeUInt32LE(0x06054b50, 0);
+  endOfCentralDirectory.writeUInt16LE(entries.length, 8);
+  endOfCentralDirectory.writeUInt16LE(entries.length, 10);
+  endOfCentralDirectory.writeUInt32LE(centralDirectory.length, 12);
+  endOfCentralDirectory.writeUInt32LE(localOffset, 16);
+
+  return Buffer.concat([...localEntries, centralDirectory, endOfCentralDirectory]);
+}
+
 describe('package verifier', () => {
   it('accepts a package containing every required release entry', () => {
     const result = verifyPackage(requiredPackagePaths);
 
     expect(result.status).toBe(0);
     expect(result.stderr).toBe('');
+  });
+
+  it('verifies paths read from the generated VSIX archive', () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'codex-cost-vsix-'));
+    const packagePath = path.join(directory, 'extension.vsix');
+    writeFileSync(packagePath, createEmptyZip(requiredPackagePaths));
+
+    try {
+      const result = spawnSync(process.execPath, ['scripts/run-package-verifier.mjs', '--package-path', packagePath], {
+        cwd: path.resolve('.'),
+        encoding: 'utf8'
+      });
+
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe('');
+    } finally {
+      rmSync(directory, { force: true, recursive: true });
+    }
   });
 
   it('rejects a package missing the compiled extension entry point', () => {

@@ -4,6 +4,11 @@ All notable changes to Codex Cost are documented here.
 
 ## Unreleased
 
+- Add a native daily cost-control loop with spend, daily budget, remaining budget, and end-of-day projection.
+- Add direct status-bar, sidebar, Quick Pick, and clipboard actions for daily cost control.
+- Add a local, theme-aware editor dashboard with seven-day usage, model costs, and recent sessions.
+- Add optional recurring local notifications for each configured X USD of workspace spend.
+
 ## 0.3.1 - 2026-07-15
 
 - Correct the Visual Studio Marketplace publisher ID to `gamjak`.

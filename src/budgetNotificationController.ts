@@ -32,7 +32,7 @@ export class BudgetNotificationController {
     initialKeys: readonly string[] = [],
     private readonly locale = 'en-US'
   ) {
-    this.notified = new Set(initialKeys.slice(-20));
+    this.notified = new Set(initialKeys.slice(-100));
   }
 
   private formatMoney(value: number): string {
@@ -48,25 +48,39 @@ export class BudgetNotificationController {
     }
   }
 
-  notify(status: BudgetStatus, now: Date): void {
-    const threshold = thresholdFor(status);
-    if (!threshold || status.budgetAmount === undefined || status.spentCost === undefined || status.hasEstimatedCostGaps) return;
-
-    const key = `${periodKey(status, now)}:${threshold}`;
-    if (this.notified.has(key)) return;
+  private remember(key: string): boolean {
+    if (this.notified.has(key)) return false;
     this.notified.add(key);
-    while (this.notified.size > 20) {
+    while (this.notified.size > 100) {
       const oldest = this.notified.values().next().value;
       if (oldest === undefined) break;
       this.notified.delete(oldest);
     }
     this.persistKeys(Array.from(this.notified));
+    return true;
+  }
 
-    const period = status.period.charAt(0).toUpperCase() + status.period.slice(1);
-    const spent = this.formatMoney(status.spentCost);
-    const budget = this.formatMoney(status.budgetAmount);
-    this.notifyUser(threshold === 'warning'
-      ? `Codex Cost: ${period} budget reached ${status.warningPercent}% — ${spent} of ${budget}.`
-      : `Codex Cost: ${period} budget exceeded — ${spent} of ${budget}.`);
+  notify(status: BudgetStatus, now: Date, everyAmount = 0): void {
+    const threshold = thresholdFor(status);
+    if (status.spentCost === undefined || status.hasEstimatedCostGaps) return;
+
+    const periodKeyValue = periodKey(status, now);
+
+    if (threshold && status.budgetAmount !== undefined && this.remember(`${periodKeyValue}:${threshold}`)) {
+      const period = status.period.charAt(0).toUpperCase() + status.period.slice(1);
+      const spent = this.formatMoney(status.spentCost);
+      const budget = this.formatMoney(status.budgetAmount);
+      this.notifyUser(threshold === 'warning'
+        ? `Codex Cost: ${period} budget reached ${status.warningPercent}% — ${spent} of ${budget}.`
+        : `Codex Cost: ${period} budget exceeded — ${spent} of ${budget}.`);
+    }
+
+    if (!Number.isFinite(everyAmount) || everyAmount <= 0) return;
+    const checkpoint = Math.floor(status.spentCost / everyAmount) * everyAmount;
+    if (checkpoint < everyAmount) return;
+    if (this.remember(`${periodKeyValue}:spending:${everyAmount}:${checkpoint}`)) {
+      const period = status.period.charAt(0).toUpperCase() + status.period.slice(1);
+      this.notifyUser(`Codex Cost: ${period} spending reached ${this.formatMoney(checkpoint)}.`);
+    }
   }
 }

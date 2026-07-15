@@ -65,4 +65,19 @@ describe('BudgetNotificationController', () => {
 
     expect(messages).toHaveLength(1);
   });
+
+  it('notifies once for each reached configured spend interval in a period', () => {
+    const messages: string[] = [];
+    const controller = new BudgetNotificationController((message) => messages.push(message));
+
+    controller.notify(status({ state: 'neutral', spentCost: 4 }), new Date(2026, 6, 10, 12), 5);
+    controller.notify(status({ state: 'neutral', spentCost: 5.1 }), new Date(2026, 6, 10, 13), 5);
+    controller.notify(status({ state: 'neutral', spentCost: 9.9 }), new Date(2026, 6, 10, 14), 5);
+    controller.notify(status({ state: 'neutral', spentCost: 12 }), new Date(2026, 6, 10, 15), 5);
+
+    expect(messages).toEqual([
+      'Codex Cost: Month spending reached $5.00.',
+      'Codex Cost: Month spending reached $10.00.'
+    ]);
+  });
 });

@@ -2,10 +2,12 @@ import * as vscode from 'vscode';
 
 import { readExtensionConfig } from '../config';
 import { SessionRepository } from '../data/sessionRepository';
+import { buildCostControlReport } from '../domain/costControl';
 import { buildUsageReport } from '../domain/sessionAggregator';
-import type { BudgetStatus, UsageReport, ViewScope } from '../domain/types';
+import type { BudgetStatus, CostControlReport, UsageReport, ViewScope } from '../domain/types';
 import { RefreshCoordinator } from '../refreshCoordinator';
 import { configureDisplay } from './costDisplay';
+import { buildCostSummaryText } from './costControlPresentation';
 import { buildStatusBarEntries } from './statusBarPresentation';
 import { buildUsageTree, type TreeNodeData } from './treePresentation';
 
@@ -17,6 +19,7 @@ interface TreeNode {
   description?: string;
   tooltip?: string;
   iconId?: string;
+  contextValue?: string;
   command?: vscode.Command;
   collapsibleState: vscode.TreeItemCollapsibleState;
   children?: TreeNode[];
@@ -29,6 +32,7 @@ function leafNode(id: string, label: string, description?: string, tooltip?: str
     description,
     tooltip,
     iconId,
+    contextValue: undefined,
     collapsibleState: vscode.TreeItemCollapsibleState.None
   };
 }
@@ -40,6 +44,8 @@ function toVscodeNode(node: TreeNodeData): TreeNode {
     description: node.description,
     tooltip: node.tooltip,
     iconId: node.iconId,
+    contextValue: node.contextValue,
+    command: node.command ? { command: node.command, title: node.label } : undefined,
     collapsibleState:
       node.collapsibleState === 'expanded'
         ? vscode.TreeItemCollapsibleState.Expanded
@@ -74,6 +80,8 @@ export class CodexCostTreeProvider implements vscode.TreeDataProvider<TreeNode> 
   private scope: ViewScope;
   private lastRefreshAt?: Date;
   private latestBudgetStatus?: BudgetStatus;
+  private latestCostControl?: CostControlReport;
+  private dashboardUpdater?: (control: CostControlReport) => void;
   private lastRefreshSucceeded = false;
 
   readonly onDidChangeTreeData = this.onDidChangeTreeDataEmitter.event;
@@ -81,9 +89,9 @@ export class CodexCostTreeProvider implements vscode.TreeDataProvider<TreeNode> 
   constructor(private readonly context: vscode.ExtensionContext) {
     this.scope = context.workspaceState.get<ViewScope>(SCOPE_KEY) ?? readExtensionConfig().scopeDefault;
 
-    this.sessionStatusItem.command = 'codexCost.refresh';
-    this.workspaceStatusItem.command = 'codexCost.refresh';
-    this.budgetStatusItem.command = 'codexCost.refresh';
+    this.sessionStatusItem.command = 'codexCost.openDashboard';
+    this.workspaceStatusItem.command = 'codexCost.openDashboard';
+    this.budgetStatusItem.command = 'codexCost.openDashboard';
 
     context.subscriptions.push(this.sessionStatusItem, this.workspaceStatusItem, this.budgetStatusItem, this.output);
   }
@@ -93,6 +101,7 @@ export class CodexCostTreeProvider implements vscode.TreeDataProvider<TreeNode> 
     item.id = element.id;
     item.description = element.description;
     item.tooltip = element.tooltip;
+    item.contextValue = element.contextValue;
     item.command = element.command;
     item.iconPath = element.iconId ? new vscode.ThemeIcon(element.iconId) : undefined;
     return item;
@@ -124,8 +133,28 @@ export class CodexCostTreeProvider implements vscode.TreeDataProvider<TreeNode> 
     return this.lastRefreshSucceeded ? this.latestBudgetStatus : undefined;
   }
 
+  getLatestCostControl(): CostControlReport | undefined {
+    return this.lastRefreshSucceeded ? this.latestCostControl : undefined;
+  }
+
+  setDashboardUpdater(callback: (control: CostControlReport) => void): void {
+    this.dashboardUpdater = callback;
+  }
+
+  async copySummary(): Promise<void> {
+    const control = this.getLatestCostControl();
+    if (!control) {
+      await vscode.window.showInformationMessage('No cost summary is available yet. Refresh cost data first.');
+      return;
+    }
+
+    await vscode.env.clipboard.writeText(buildCostSummaryText(control));
+    await vscode.window.showInformationMessage('Cost summary copied to the clipboard.');
+  }
+
   private async performRefresh(): Promise<void> {
     this.lastRefreshSucceeded = false;
+    this.latestCostControl = undefined;
     const configuration = readExtensionConfig();
     configureDisplay(vscode.env.language);
     const workspaceRoots = (vscode.workspace.workspaceFolders ?? []).map((folder) => folder.uri.fsPath);
@@ -142,6 +171,15 @@ export class CodexCostTreeProvider implements vscode.TreeDataProvider<TreeNode> 
         filterStartDateInput: configuration.filterStartDate,
         budgetSettings: configuration.budgetSettings,
         budgetPeriod: configuration.statusBarBudgetPeriod,
+        now: refreshedAt
+      });
+      const control = buildCostControlReport(loaded.sessions, configuration.pricingByModel, {
+        scope: 'workspace',
+        workspaceRoots,
+        sessionSources: configuration.sessionSources,
+        filterStartDateInput: configuration.filterStartDate,
+        budgetSettings: configuration.budgetSettings,
+        budgetPeriod: 'day',
         now: refreshedAt
       });
       const report = buildUsageReport(loaded.sessions, configuration.pricingByModel, {
@@ -163,17 +201,27 @@ export class CodexCostTreeProvider implements vscode.TreeDataProvider<TreeNode> 
             warnings: [...report.warnings, ...loaded.warnings]
           };
 
-      this.updateStatusBar(workspaceReport, configuration);
+      this.updateStatusBar(workspaceReport, configuration, control);
       this.latestBudgetStatus = workspaceReport.budget;
+      this.latestCostControl = control;
       this.lastRefreshSucceeded = true;
       this.nodes = buildUsageTree(this.scope, displayReport, {
         autoRefreshSeconds: configuration.autoRefreshSeconds,
         lastRefreshAt: this.lastRefreshAt
-      }).map(toVscodeNode);
+      }, control).map(toVscodeNode);
+      if (this.dashboardUpdater) {
+        try {
+          this.dashboardUpdater(control);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Unknown error';
+          this.output.appendLine(`[${new Date().toISOString()}] Dashboard update failed: ${message}`);
+        }
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       this.output.appendLine(`[${new Date().toISOString()}] Refresh failed: ${message}`);
-      this.updateStatusBar(emptyUsageReport(configuration), configuration);
+      const emptyControl = emptyCostControlReport(configuration);
+      this.updateStatusBar(emptyUsageReport(configuration), configuration, emptyControl);
       this.nodes = [
         leafNode('error', 'Failed to load Codex logs', message, message, 'error')
       ];
@@ -182,11 +230,15 @@ export class CodexCostTreeProvider implements vscode.TreeDataProvider<TreeNode> 
     this.onDidChangeTreeDataEmitter.fire();
   }
 
-  private updateStatusBar(report: UsageReport, configuration: ReturnType<typeof readExtensionConfig>): void {
+  private updateStatusBar(
+    report: UsageReport,
+    configuration: ReturnType<typeof readExtensionConfig>,
+    control: CostControlReport
+  ): void {
     const entries = buildStatusBarEntries(report, {
       autoRefreshSeconds: configuration.autoRefreshSeconds,
       visibility: configuration.statusBarVisibility
-    });
+    }, control);
 
     this.applyStatusBarEntry(this.sessionStatusItem, entries.session);
     this.applyStatusBarEntry(this.workspaceStatusItem, entries.workspace);
@@ -219,6 +271,18 @@ function emptyUsageReport(configuration: ReturnType<typeof readExtensionConfig>)
     filterStartDateInput: configuration.filterStartDate,
     budgetSettings: configuration.budgetSettings,
     budgetPeriod: configuration.statusBarBudgetPeriod,
+    now: new Date()
+  });
+}
+
+function emptyCostControlReport(configuration: ReturnType<typeof readExtensionConfig>): CostControlReport {
+  return buildCostControlReport([], configuration.pricingByModel, {
+    scope: 'workspace',
+    workspaceRoots: [],
+    sessionSources: configuration.sessionSources,
+    filterStartDateInput: configuration.filterStartDate,
+    budgetSettings: configuration.budgetSettings,
+    budgetPeriod: 'day',
     now: new Date()
   });
 }

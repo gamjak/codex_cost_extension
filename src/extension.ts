@@ -4,6 +4,8 @@ import { createAutoRefreshController } from './autoRefreshController';
 import { BudgetNotificationController } from './budgetNotificationController';
 import { readExtensionConfig } from './config';
 import { createPeriodBoundaryController } from './periodBoundaryController';
+import { CostDashboard } from './view/costDashboard';
+import { buildCostControlQuickPickPlaceholder } from './view/costControlPresentation';
 import { CodexCostTreeProvider } from './view/costTreeProvider';
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -28,14 +30,27 @@ export function activate(context: vscode.ExtensionContext): void {
   const refreshAndNotify = async (): Promise<void> => {
     await provider.refresh();
     const status = provider.getLatestBudgetStatus();
-    if (readExtensionConfig().budgetNotificationsEnabled && status) budgetNotifications.notify(status, new Date());
+    const configuration = readExtensionConfig();
+    if (configuration.budgetNotificationsEnabled && status) {
+      budgetNotifications.notify(status, new Date(), configuration.budgetNotificationEveryAmount);
+    }
   };
   const autoRefreshController = createAutoRefreshController(() => refreshAndNotify());
   const periodBoundaryController = createPeriodBoundaryController(() => refreshAndNotify());
+  const dashboard = new CostDashboard({
+    refresh: refreshAndNotify,
+    configureDailyBudget: async () => {
+      await vscode.commands.executeCommand('codexCost.configureDailyBudget');
+    },
+    copySummary: async () => {
+      await vscode.commands.executeCommand('codexCost.copySummary');
+    }
+  });
 
   context.subscriptions.push(vscode.window.registerTreeDataProvider('codexCost.usage', provider));
   context.subscriptions.push(autoRefreshController);
   context.subscriptions.push(periodBoundaryController);
+  context.subscriptions.push(dashboard);
 
   context.subscriptions.push(
     vscode.commands.registerCommand('codexCost.refresh', async () => {
@@ -62,6 +77,64 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand('codexCost.openCostControl', async () => {
+      const action = await vscode.window.showQuickPick([
+        { label: 'Open Cost Dashboard', value: 'dashboard' },
+        { label: 'Refresh cost data', value: 'refresh' },
+        { label: 'Configure daily budget', value: 'budget' },
+        { label: 'Open Codex Cost settings', value: 'settings' }
+      ], { placeHolder: buildCostControlQuickPickPlaceholder(provider.getLatestCostControl()) });
+
+      if (action?.value === 'dashboard') {
+        await vscode.commands.executeCommand('codexCost.openDashboard');
+      } else if (action?.value === 'refresh') {
+        await refreshAndNotify();
+      } else if (action?.value === 'budget') {
+        await vscode.commands.executeCommand('codexCost.configureDailyBudget');
+      } else if (action?.value === 'settings') {
+        await vscode.commands.executeCommand('codexCost.openSettings');
+      }
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('codexCost.configureDailyBudget', async () => {
+      const amountInput = await vscode.window.showInputBox({
+        prompt: 'Set a positive daily USD budget',
+        placeHolder: 'For example: 10.00',
+        validateInput: validateDailyBudgetInput
+      });
+      if (amountInput === undefined || validateDailyBudgetInput(amountInput)) return;
+
+      await vscode.workspace.getConfiguration('codexCost').update(
+        'budget.dayAmount',
+        Number(amountInput.trim()),
+        vscode.ConfigurationTarget.Global
+      );
+      await refreshAndNotify();
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('codexCost.copySummary', async () => {
+      await provider.copySummary();
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('codexCost.openDashboard', async () => {
+      let control = provider.getLatestCostControl();
+      if (!control) {
+        await refreshAndNotify();
+        control = provider.getLatestCostControl();
+      }
+      if (control) dashboard.show(control);
+    })
+  );
+
+  provider.setDashboardUpdater((control) => dashboard.update(control));
+
+  context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration(async (event) => {
       if (event.affectsConfiguration('codexCost')) {
         autoRefreshController.updateIntervalSeconds(readExtensionConfig().autoRefreshSeconds);
@@ -81,3 +154,8 @@ export function activate(context: vscode.ExtensionContext): void {
 }
 
 export function deactivate(): void {}
+
+function validateDailyBudgetInput(value: string): string | undefined {
+  const amount = Number(value.trim());
+  return Number.isFinite(amount) && amount > 0 ? undefined : 'Enter a positive USD amount.';
+}

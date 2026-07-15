@@ -105,3 +105,16 @@ export interface UsageReport {
   filter: FilterStatus;
   budget: BudgetStatus;
 }
+
+export interface DailyCostPoint {
+  date: string;
+  estimatedCost?: number;
+  hasEstimatedCostGaps: boolean;
+}
+
+export interface CostControlReport {
+  today: UsageReport;
+  remainingCost?: number;
+  projectedCost?: number;
+  daily: readonly DailyCostPoint[];
+}
