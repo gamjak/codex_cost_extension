@@ -1,4 +1,4 @@
-import type { SessionReportItem, UsageReport, ViewScope } from '../domain/types';
+import type { CostControlReport, SessionReportItem, UsageReport, ViewScope } from '../domain/types';
 import { budgetPeriodLabel } from '../domain/timeWindows';
 import {
   describeAutoRefresh,
@@ -7,6 +7,7 @@ import {
   formatRefreshTimestamp,
   formatTokensDe
 } from './costDisplay';
+import { buildCostControlText } from './costControlPresentation';
 
 export interface TreeNodeData {
   id: string;
@@ -14,6 +15,8 @@ export interface TreeNodeData {
   description?: string;
   tooltip?: string;
   iconId?: string;
+  command?: string;
+  contextValue?: string;
   collapsibleState: 'none' | 'expanded';
   children?: TreeNodeData[];
 }
@@ -30,7 +33,9 @@ function leafNode(
   label: string,
   description?: string,
   tooltip?: string,
-  iconId?: string
+  iconId?: string,
+  command?: string,
+  contextValue?: string
 ): TreeNodeData {
   return {
     id,
@@ -38,17 +43,30 @@ function leafNode(
     description,
     tooltip,
     iconId,
+    command,
+    contextValue,
     collapsibleState: 'none'
   };
 }
 
-function sectionNode(id: string, label: string, children: TreeNodeData[], description?: string, tooltip?: string, iconId?: string): TreeNodeData {
+function sectionNode(
+  id: string,
+  label: string,
+  children: TreeNodeData[],
+  description?: string,
+  tooltip?: string,
+  iconId?: string,
+  command?: string,
+  contextValue?: string
+): TreeNodeData {
   return {
     id,
     label,
     description,
     tooltip,
     iconId,
+    command,
+    contextValue,
     collapsibleState: 'expanded',
     children
   };
@@ -138,8 +156,42 @@ function buildBudgetTooltip(report: UsageReport, scope: ViewScope): string {
   return lines.join('\n');
 }
 
-export function buildUsageTree(scope: ViewScope, report: UsageReport, refreshInfo: RefreshInfo): TreeNodeData[] {
+function buildTodayNode(control: CostControlReport): TreeNodeData {
+  const text = buildCostControlText(control);
+  return sectionNode(
+    'today',
+    'Today',
+    [
+      leafNode('today-spent', 'Estimated spend', text.spentText, text.tooltip, 'dashboard', 'codexCost.openDashboard', 'codexCost.today'),
+      leafNode(
+        'today-budget',
+        'Daily budget',
+        text.budgetText ?? 'Not configured',
+        text.budgetText ? 'Configured daily USD budget.' : 'Configure a positive daily USD budget.',
+        text.budgetText ? 'dashboard' : 'gear',
+        text.budgetText ? 'codexCost.openDashboard' : 'codexCost.configureDailyBudget',
+        text.budgetText ? 'codexCost.today' : 'codexCost.dailyBudget'
+      ),
+      ...(text.remainingText ? [leafNode('today-remaining', 'Remaining', text.remainingText.replace('Remaining: ', ''), text.remainingText, 'check')] : []),
+      ...(text.projectedText ? [leafNode('today-projected', 'Projection', text.projectedText.replace('Projected end of day: ', ''), text.projectedText, 'graph-line')] : []),
+      leafNode('today-state', 'Status', text.label, text.tooltip, text.tone === 'error' ? 'error' : text.tone === 'warning' ? 'warning' : 'check', 'codexCost.openDashboard', 'codexCost.today')
+    ],
+    text.text.replace('Today ', ''),
+    text.tooltip,
+    text.tone === 'error' ? 'error' : text.tone === 'warning' ? 'warning' : 'dashboard',
+    'codexCost.openDashboard',
+    'codexCost.today'
+  );
+}
+
+export function buildUsageTree(
+  scope: ViewScope,
+  report: UsageReport,
+  refreshInfo: RefreshInfo,
+  control: CostControlReport
+): TreeNodeData[] {
   const nodes: TreeNodeData[] = [
+    buildTodayNode(control),
     leafNode(
       'scope',
       'Scope',
@@ -185,7 +237,7 @@ export function buildUsageTree(scope: ViewScope, report: UsageReport, refreshInf
       leafNode('summary-cached', 'Cached input', formatTokensDe(report.summary.cachedInputTokens)),
       leafNode('summary-output', 'Output', formatTokensDe(report.summary.outputTokens)),
       leafNode('summary-sessions', 'Sessions', formatTokensDe(report.summary.sessionsCount))
-    ])
+    ], undefined, undefined, undefined, undefined, 'codexCost.copyable')
   ];
 
   if (report.models.length > 0) {
@@ -208,7 +260,9 @@ export function buildUsageTree(scope: ViewScope, report: UsageReport, refreshInf
               approximate: !model.hasPricing && model.estimatedCost !== undefined
             }),
             `${formatTokensDe(model.totalTokens)} total tokens`,
-            'hubot'
+            'hubot',
+            undefined,
+            'codexCost.copyable'
           )
         )
       )
@@ -228,7 +282,9 @@ export function buildUsageTree(scope: ViewScope, report: UsageReport, refreshInf
               approximate: !session.hasPricing && session.estimatedCost !== undefined
             }),
             buildSessionTooltip(session),
-            'history'
+            'history',
+            undefined,
+            'codexCost.copyable'
           )
         )
       )

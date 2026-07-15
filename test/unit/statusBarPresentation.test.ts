@@ -1,7 +1,36 @@
 import { describe, expect, it } from 'vitest';
 
 import { buildStatusBarEntries } from '../../src/view/statusBarPresentation';
-import type { UsageReport } from '../../src/domain/types';
+import type { CostControlReport, UsageReport } from '../../src/domain/types';
+
+const dailyControl: CostControlReport = {
+  today: {
+    summary: {
+      sessionsCount: 1,
+      inputTokens: 500_000,
+      cachedInputTokens: 0,
+      outputTokens: 0,
+      totalTokens: 500_000,
+      estimatedCost: 0.5
+    },
+    models: [],
+    sessions: [],
+    warnings: [],
+    hasEstimatedCostGaps: false,
+    filter: { state: 'off' },
+    budget: {
+      period: 'day',
+      spentCost: 0.5,
+      budgetAmount: 1,
+      warningPercent: 80,
+      hasEstimatedCostGaps: false,
+      state: 'neutral'
+    }
+  },
+  remainingCost: 0.5,
+  projectedCost: 1,
+  daily: []
+};
 
 const pricedReport: UsageReport = {
   summary: {
@@ -91,16 +120,16 @@ describe('buildStatusBarEntries', () => {
         showWorkspace: true,
         showBudget: true
       }
-    });
+    }, dailyControl);
 
     expect(entries.session.visible).toBe(true);
     expect(entries.session.text).toBe('$(history) Latest 12,40 $');
     expect(entries.workspace.text).toBe('$(folder-opened) Workspace 154,00 $');
-    expect(entries.budget.text).toBe('$(dashboard) Month 154,00 $/500,00 $');
+    expect(entries.budget.text).toBe('$(dashboard) Today 0,50 $/1,00 $ · On track');
     expect(entries.budget.tone).toBe('default');
     expect(entries.session.tooltip).toContain('Filter start: 01.06.2026');
     expect(entries.workspace.tooltip).toContain('Auto-refresh: every 60s');
-    expect(entries.budget.tooltip).toContain('Warning threshold: 80%');
+    expect(entries.budget.tooltip).toContain('Projected end of day: 1,00 $');
   });
 
   it('marks approximate budgets and warning states clearly', () => {
@@ -111,11 +140,18 @@ describe('buildStatusBarEntries', () => {
         showWorkspace: true,
         showBudget: true
       }
+    }, {
+      ...dailyControl,
+      today: {
+        ...dailyControl.today,
+        hasEstimatedCostGaps: true,
+        budget: { ...dailyControl.today.budget, hasEstimatedCostGaps: true, state: 'warning' }
+      }
     });
 
     expect(entries.session.text).toBe('$(history) Latest n/a');
     expect(entries.workspace.text).toBe('$(folder-opened) Workspace ~91,00 $');
-    expect(entries.budget.text).toBe('$(dashboard) Week ~91,00 $/100,00 $');
+    expect(entries.budget.text).toBe('$(dashboard) Today ~0,50 $/1,00 $ · Watch');
     expect(entries.budget.tone).toBe('warning');
     expect(entries.budget.tooltip).toContain('Auto-refresh: off');
   });
@@ -146,13 +182,21 @@ describe('buildStatusBarEntries', () => {
           showWorkspace: true,
           showBudget: true
         }
+      },
+      {
+        ...dailyControl,
+        today: {
+          ...dailyControl.today,
+          budget: { ...dailyControl.today.budget, budgetAmount: undefined, state: 'none' }
+        },
+        remainingCost: undefined
       }
     );
 
     expect(entries.session.visible).toBe(false);
     expect(entries.workspace.visible).toBe(true);
     expect(entries.workspace.text).toBe('$(folder-opened) Workspace n/a');
-    expect(entries.budget.text).toBe('$(dashboard) Day no budget');
+    expect(entries.budget.text).toBe('$(dashboard) Today 0,50 $ · Set daily budget');
     expect(entries.budget.tone).toBe('default');
   });
 });

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { buildUsageTree, formatCostUsd, formatTokensDe } from '../../src/view/treePresentation';
-import type { UsageReport } from '../../src/domain/types';
+import type { CostControlReport, UsageReport } from '../../src/domain/types';
 
 const report: UsageReport = {
   summary: {
@@ -58,6 +58,24 @@ const report: UsageReport = {
   }
 };
 
+const control: CostControlReport = {
+  today: {
+    ...report,
+    summary: { ...report.summary, estimatedCost: 0.5 },
+    budget: {
+      period: 'day',
+      spentCost: 0.5,
+      budgetAmount: 1,
+      warningPercent: 80,
+      hasEstimatedCostGaps: false,
+      state: 'neutral'
+    }
+  },
+  remainingCost: 0.5,
+  projectedCost: 1,
+  daily: []
+};
+
 describe('formatTokensDe', () => {
   it('formats token counts with German separators', () => {
     expect(formatTokensDe(96_718_978)).toBe('96.718.978');
@@ -79,44 +97,51 @@ describe('buildUsageTree', () => {
     const nodes = buildUsageTree('workspace', report, {
       autoRefreshSeconds: 60,
       lastRefreshAt: new Date('2026-06-01T09:30:00.000Z')
-    });
+    }, control);
 
     expect(nodes[0]).toMatchObject({
+      id: 'today',
+      label: 'Today',
+      description: '0,50 $/1,00 $ · On track',
+      command: 'codexCost.openDashboard',
+      contextValue: 'codexCost.today'
+    });
+
+    expect(nodes[1]).toMatchObject({
       id: 'scope',
       label: 'Scope',
       description: 'Workspace'
     });
 
-    expect(nodes[1]).toMatchObject({
+    expect(nodes[2]).toMatchObject({
       id: 'filter',
       label: 'Filter start',
       description: '01.06.2026'
     });
-
-    expect(nodes[2]).toMatchObject({
+    expect(nodes[3]).toMatchObject({
       id: 'refresh',
       label: 'Refresh',
       description: 'Every 60s'
     });
-    expect(nodes[2].tooltip).toContain('Manual refresh updates immediately');
-    expect(nodes[2].tooltip).toContain('2026');
+    expect(nodes[3].tooltip).toContain('Manual refresh updates immediately');
+    expect(nodes[3].tooltip).toContain('2026');
 
-    expect(nodes[3]).toMatchObject({
+    expect(nodes[4]).toMatchObject({
       id: 'budget',
       label: 'Budget',
       description: 'Month 154,00 $/500,00 $'
     });
 
-    expect(nodes[4]).toMatchObject({
+    expect(nodes[5]).toMatchObject({
       id: 'summary',
       label: 'Summary'
     });
-    expect(nodes[4].children?.[0]).toMatchObject({
+    expect(nodes[5].children?.[0]).toMatchObject({
       id: 'summary-cost',
       label: 'Estimated cost',
       description: '108,02 $'
     });
-    expect(nodes[4].children?.[1]).toMatchObject({
+    expect(nodes[5].children?.[1]).toMatchObject({
       id: 'summary-total',
       label: 'Total tokens',
       description: '96.718.978'
@@ -164,22 +189,23 @@ describe('buildUsageTree', () => {
       {
         autoRefreshSeconds: 0,
         lastRefreshAt: new Date('2026-06-01T09:30:00.000Z')
-      }
+      },
+      control
     );
 
-    expect(nodes[1]).toMatchObject({
+    expect(nodes[2]).toMatchObject({
       id: 'filter',
       description: 'Ignored'
     });
-    expect(nodes[2]).toMatchObject({
+    expect(nodes[3]).toMatchObject({
       id: 'refresh',
       description: 'Off'
     });
-    expect(nodes[3]).toMatchObject({
+    expect(nodes[4]).toMatchObject({
       id: 'budget',
       description: 'Week ~91,00 $/100,00 $'
     });
-    expect(nodes[4].children?.[0]).toMatchObject({
+    expect(nodes[5].children?.[0]).toMatchObject({
       id: 'summary-cost',
       description: '~108,02 $'
     });

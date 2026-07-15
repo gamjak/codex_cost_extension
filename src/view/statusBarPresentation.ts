@@ -1,6 +1,6 @@
-import type { SessionReportItem, StatusBarVisibility, UsageReport } from '../domain/types';
-import { budgetPeriodLabel } from '../domain/timeWindows';
+import type { CostControlReport, SessionReportItem, StatusBarVisibility, UsageReport } from '../domain/types';
 import { describeAutoRefresh, formatCostUsd, formatRefreshTimestamp, formatTokensDe } from './costDisplay';
+import { buildCostControlText } from './costControlPresentation';
 
 export interface StatusBarEntry {
   text: string;
@@ -94,54 +94,10 @@ function buildWorkspaceTooltip(report: UsageReport, autoRefreshSeconds: number):
   return lines.filter((line): line is string => Boolean(line)).join('\n');
 }
 
-function buildBudgetText(report: UsageReport): string {
-  const label = budgetPeriodLabel(report.budget.period);
-
-  if (!report.budget.budgetAmount) {
-    return `$(dashboard) ${label} no budget`;
-  }
-
-  return `$(dashboard) ${label} ${formatCostUsd(report.budget.spentCost, {
-    approximate: report.budget.hasEstimatedCostGaps && report.budget.spentCost !== undefined,
-    unavailableLabel: 'n/a'
-  })}/${formatCostUsd(report.budget.budgetAmount)}`;
-}
-
-function buildBudgetTooltip(report: UsageReport, autoRefreshSeconds: number): string {
-  const label = budgetPeriodLabel(report.budget.period);
-  const lines = [
-    `${label} workspace budget window`,
-    report.budget.budgetAmount
-      ? `Budget: ${formatCostUsd(report.budget.budgetAmount)}`
-      : 'Budget: not configured',
-    `Spent: ${formatCostUsd(report.budget.spentCost, {
-      approximate: report.budget.hasEstimatedCostGaps && report.budget.spentCost !== undefined,
-      unavailableLabel: 'n/a'
-    })}`,
-    `Warning threshold: ${report.budget.warningPercent}%`,
-    'Budget windows ignore the fixed filter.',
-    describeAutoRefresh(autoRefreshSeconds),
-    'Click to refresh now.'
-  ];
-
-  return lines.join('\n');
-}
-
-function budgetTone(report: UsageReport): 'default' | 'warning' | 'error' {
-  if (report.budget.state === 'error') {
-    return 'error';
-  }
-
-  if (report.budget.state === 'warning') {
-    return 'warning';
-  }
-
-  return 'default';
-}
-
 export function buildStatusBarEntries(
   report: UsageReport,
-  options: StatusBarPresentationOptions
+  options: StatusBarPresentationOptions,
+  control: CostControlReport
 ): StatusBarEntries {
   const currentSession = report.sessions[0];
 
@@ -176,11 +132,12 @@ export function buildStatusBarEntries(
         tone: 'default'
       };
 
+  const costControl = buildCostControlText(control);
   const budget: StatusBarEntry = {
-    text: buildBudgetText(report),
-    tooltip: buildBudgetTooltip(report, options.autoRefreshSeconds),
+    text: `$(dashboard) ${costControl.text}`,
+    tooltip: [costControl.tooltip, describeAutoRefresh(options.autoRefreshSeconds), 'Click to open Cost Dashboard.'].join('\n'),
     visible: options.visibility.showBudget,
-    tone: budgetTone(report)
+    tone: costControl.tone
   };
 
   if (!currentSession) {

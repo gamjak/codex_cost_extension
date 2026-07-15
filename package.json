@@ -34,7 +34,11 @@
     "onCommand:codexCost.refresh",
     "onCommand:codexCost.setScopeWorkspace",
     "onCommand:codexCost.setScopeAll",
-    "onCommand:codexCost.openSettings"
+    "onCommand:codexCost.openSettings",
+    "onCommand:codexCost.openCostControl",
+    "onCommand:codexCost.openDashboard",
+    "onCommand:codexCost.configureDailyBudget",
+    "onCommand:codexCost.copySummary"
   ],
   "contributes": {
     "viewsContainers": {
@@ -74,10 +78,35 @@
         "command": "codexCost.openSettings",
         "title": "%command.settings%",
         "icon": "$(gear)"
+      },
+      {
+        "command": "codexCost.openCostControl",
+        "title": "Open Cost Control",
+        "icon": "$(dashboard)"
+      },
+      {
+        "command": "codexCost.openDashboard",
+        "title": "Open Cost Dashboard",
+        "icon": "$(dashboard)"
+      },
+      {
+        "command": "codexCost.configureDailyBudget",
+        "title": "Configure Daily Budget",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "codexCost.copySummary",
+        "title": "Copy Cost Summary",
+        "icon": "$(copy)"
       }
     ],
     "menus": {
       "view/title": [
+        {
+          "command": "codexCost.openCostControl",
+          "when": "view == codexCost.usage",
+          "group": "navigation@0"
+        },
         {
           "command": "codexCost.refresh",
           "when": "view == codexCost.usage",
@@ -97,6 +126,33 @@
           "command": "codexCost.openSettings",
           "when": "view == codexCost.usage",
           "group": "navigation@3"
+        },
+        {
+          "command": "codexCost.configureDailyBudget",
+          "when": "view == codexCost.usage",
+          "group": "navigation@4"
+        },
+        {
+          "command": "codexCost.copySummary",
+          "when": "view == codexCost.usage",
+          "group": "navigation@5"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "codexCost.openDashboard",
+          "when": "view == codexCost.usage && viewItem == codexCost.today",
+          "group": "inline"
+        },
+        {
+          "command": "codexCost.configureDailyBudget",
+          "when": "view == codexCost.usage && (viewItem == codexCost.today || viewItem == codexCost.dailyBudget)",
+          "group": "navigation"
+        },
+        {
+          "command": "codexCost.copySummary",
+          "when": "view == codexCost.usage && viewItem == codexCost.copyable",
+          "group": "navigation"
         }
       ]
     },
