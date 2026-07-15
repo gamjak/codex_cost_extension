@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: Git tag or commit SHA to publish
+        description: Existing GitHub Release tag to publish (for example, v0.3.0)
         required: true
         type: string
 
@@ -16,6 +16,12 @@ jobs:
     runs-on: ubuntu-latest
     environment: marketplace
     steps:
+      - name: Validate GitHub release tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          test "$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json tagName --jq '.tagName')" = "$RELEASE_TAG"
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           ref: ${{ inputs.release_tag }}

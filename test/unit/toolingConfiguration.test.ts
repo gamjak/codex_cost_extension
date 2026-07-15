@@ -105,9 +105,17 @@ describe('tooling configuration', () => {
 
     expect(workflow).toMatch(/^on:\s*\n\s*workflow_dispatch:/m);
     expect(workflow).toContain('release_tag:');
+    expect(workflow).toContain('description: Existing GitHub Release tag to publish');
     expect(workflow).toMatch(/release_tag:\s*\n(?:.*\n)*?\s+required: true/m);
     expect(workflow).toMatch(/^permissions:\s*\n\s+contents: read\s*$/m);
     expect(workflow).toContain('environment: marketplace');
+    expect(workflow).toContain('- name: Validate GitHub release tag');
+    expect(workflow).toContain('GH_TOKEN: ${{ github.token }}');
+    expect(workflow).toContain('gh release view "$RELEASE_TAG"');
+    expect(workflow).toContain('--json tagName --jq \'.tagName\')" = "$RELEASE_TAG"');
+    expect(workflow.indexOf('- name: Validate GitHub release tag')).toBeLessThan(
+      workflow.indexOf('actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7')
+    );
     expect(workflow).toContain('ref: ${{ inputs.release_tag }}');
     expect(workflow).toContain('actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7');
     expect(workflow).toContain('pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6');
