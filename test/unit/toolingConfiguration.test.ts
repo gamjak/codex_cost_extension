@@ -9,6 +9,7 @@ interface ToolingManifest {
     compile: string;
     check: string;
     test: string;
+    watch: string;
     'vscode:prepublish': string;
   };
 }
@@ -36,6 +37,7 @@ describe('tooling configuration', () => {
     expect(scripts.compile).toBe('tsc -p tsconfig.build.json');
     expect(scripts.check).toBe('tsc -p tsconfig.json --noEmit && eslint . && vitest run');
     expect(scripts.test).toBe('vitest run');
+    expect(scripts.watch).toBe('tsc -watch -p tsconfig.build.json');
     expect(scripts['vscode:prepublish']).toBe('tsc -p tsconfig.build.json && eslint . && vitest run');
 
     expect(vitestConfig.test?.exclude).toEqual([

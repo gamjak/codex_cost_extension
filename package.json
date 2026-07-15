@@ -286,7 +286,7 @@
     "check": "tsc -p tsconfig.json --noEmit && eslint . && vitest run",
     "lint": "eslint .",
     "package": "vsce package --no-dependencies",
-    "watch": "tsc -watch -p ./",
+    "watch": "tsc -watch -p tsconfig.build.json",
     "test": "vitest run",
     "vscode:prepublish": "tsc -p tsconfig.build.json && eslint . && vitest run"
   },
