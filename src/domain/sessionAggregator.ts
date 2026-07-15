@@ -23,6 +23,7 @@ export interface BuildUsageReportOptions {
   workspaceRoots: readonly string[];
   sessionSources?: readonly string[];
   filterStartDateInput?: string;
+  filterEndAt?: Date;
   budgetSettings: BudgetSettings;
   budgetPeriod: BudgetPeriod;
   now?: Date;
@@ -264,6 +265,7 @@ export function buildUsageReport(
 
   const now = options.now ?? new Date();
   const filterStartAtMs = filterResolution.startAt?.getTime();
+  const filterEndAtMs = options.filterEndAt?.getTime();
   const nowMs = now.getTime();
   const budgetWindow = createBudgetWindow(options.budgetPeriod, now);
   const budgetStartAtMs = budgetWindow.start.getTime();
@@ -285,7 +287,10 @@ export function buildUsageReport(
       }
 
       const matchesScope = options.scope === 'all' || matchesWorkspaceRoots(delta.cwd, options.workspaceRoots);
-      const matchesFilterWindow = (filterStartAtMs === undefined || deltaTimestampMs >= filterStartAtMs) && matchesScope;
+      const matchesFilterWindow =
+        (filterStartAtMs === undefined || deltaTimestampMs >= filterStartAtMs) &&
+        (filterEndAtMs === undefined || deltaTimestampMs < filterEndAtMs) &&
+        matchesScope;
       const matchesBudgetWindow = deltaTimestampMs >= budgetStartAtMs && matchesScope;
       const pricing = resolveModelPricing(delta.model, pricingByModel);
 

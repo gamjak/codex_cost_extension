@@ -105,6 +105,25 @@ describe('buildUsageReport', () => {
     expect(report.warnings).toContain('Missing pricing for model: unknown-model');
   });
 
+  it('returns only deltas inside an explicit end boundary', () => {
+    const report = buildUsageReport(sessions, pricing, {
+      scope: 'workspace',
+      workspaceRoots: [workspaceRoot],
+      budgetSettings: {
+        dayAmount: 1,
+        weekAmount: 3,
+        monthAmount: 10,
+        warningPercent: 80
+      },
+      budgetPeriod: 'month',
+      now: new Date('2026-06-05T12:00:00.000Z'),
+      filterStartDateInput: '05.06.2026',
+      filterEndAt: new Date('2026-06-06T00:00:00.000Z')
+    });
+
+    expect(report.summary.estimatedCost).toBeCloseTo(0.5);
+  });
+
   it('ignores invalid filter dates and surfaces a warning instead of throwing', () => {
     const report = buildUsageReport(sessions, pricing, {
       scope: 'all',
