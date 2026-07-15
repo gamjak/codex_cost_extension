@@ -18,7 +18,22 @@ function verifyPackage(paths: string[]) {
   });
 }
 
+function runPackageVerifier() {
+  return spawnSync(process.execPath, ['scripts/run-package-verifier.mjs'], {
+    cwd: path.resolve('.'),
+    encoding: 'utf8'
+  });
+}
+
 describe('package verifier', () => {
+  it('runs the VSCE tree verifier through the platform command shim', () => {
+    const result = runPackageVerifier();
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('Package verification passed');
+    expect(result.stderr).toBe('');
+  });
+
   it('accepts a package containing every required release entry', () => {
     const result = verifyPackage(requiredPackagePaths);
 
