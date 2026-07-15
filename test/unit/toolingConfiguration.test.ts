@@ -12,6 +12,7 @@ interface ToolingManifest {
     watch: string;
     'vscode:prepublish': string;
   };
+  devDependencies?: Record<string, string>;
 }
 
 function readText(relativePath: string): string {
@@ -45,6 +46,15 @@ describe('tooling configuration', () => {
       'node_modules/**',
       '.vscode-test/**'
     ]);
+  });
+
+  it('declares a Vite version compatible with the Vitest runner', () => {
+    const manifest = readManifest();
+
+    expect(manifest.devDependencies).toMatchObject({
+      vitest: '^4.1.10',
+      vite: '^6.0.0'
+    });
   });
 
   it('emits only extension source files in the runtime build configuration', () => {

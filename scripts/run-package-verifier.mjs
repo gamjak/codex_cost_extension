@@ -2,7 +2,8 @@ import { spawnSync } from 'node:child_process';
 
 const vsceCommand = process.platform === 'win32' ? 'vsce.cmd' : 'vsce';
 const vsceResult = spawnSync(vsceCommand, ['ls', '--tree'], {
-  encoding: 'utf8'
+  encoding: 'utf8',
+  shell: process.platform === 'win32'
 });
 
 if (vsceResult.error) {
