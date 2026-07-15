@@ -114,7 +114,7 @@ describe('tooling configuration', () => {
     expect(workflow).toMatch(/^on:\s*\n\s*workflow_dispatch:/m);
     expect(workflow).toContain('release_tag:');
     expect(workflow).toContain('description: Existing GitHub Release tag to publish');
-    expect(workflow).toMatch(/release_tag:\s*\n(?:.*\n)*?\s+required: true/m);
+    expect(workflow).toMatch(/release_tag:[\s\S]*?required: true/);
     expect(workflow).toMatch(/^permissions:\s*\n\s+contents: read\s*$/m);
     expect(workflow).toContain('environment: marketplace');
     expect(workflow).toContain('- name: Validate GitHub release tag');

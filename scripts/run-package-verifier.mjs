@@ -55,4 +55,7 @@ const verifierResult = spawnSync(process.execPath, ['scripts/verify-package.mjs'
 
 process.stdout.write(verifierResult.stdout);
 process.stderr.write(verifierResult.stderr);
+if (verifierResult.status !== 0) {
+  process.stderr.write(`VSIX package tree:\n${vsceResult.stdout}`);
+}
 process.exit(verifierResult.status ?? 1);
