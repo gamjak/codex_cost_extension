@@ -314,6 +314,33 @@ describe('buildCostCenterHtml', () => {
     }
   );
 
+  it('deduplicates the change-then-blur sequence but posts a later distinct valid custom range', () => {
+    const error = { textContent: '', hidden: true };
+    const client = runClient({ '[data-range-error]': error });
+    const range = new client.Select({ control: 'range', action: 'setRange' }); range.value = 'custom';
+    const compare = new client.Input({ control: 'compare', action: 'setRange' }, 'checkbox');
+    const start = new client.Input({ control: 'start-date', action: 'setRange' }, 'text', '01.03.2026');
+    const end = new client.Input({ control: 'end-date', action: 'setRange' }, 'text', '02.03.2026');
+    client.elements['[data-control="range"]'] = range;
+    client.elements['[data-control="compare"]'] = compare;
+    client.elements['[data-control="start-date"]'] = start;
+    client.elements['[data-control="end-date"]'] = end;
+
+    client.change(end);
+    client.blur(end);
+    expect(client.posts).toEqual([
+      { type: 'setRange', value: { kind: 'custom', startDate: '01.03.2026', endDate: '02.03.2026', compare: false } }
+    ]);
+
+    end.value = '03.03.2026';
+    client.change(end);
+    client.blur(end);
+    expect(client.posts).toEqual([
+      { type: 'setRange', value: { kind: 'custom', startDate: '01.03.2026', endDate: '02.03.2026', compare: false } },
+      { type: 'setRange', value: { kind: 'custom', startDate: '01.03.2026', endDate: '03.03.2026', compare: false } }
+    ]);
+  });
+
   it('rejects unknown fields and serializes allowlisted field values by type', () => {
     const client = runClient();
     client.change(new client.Input({ action: 'updateSettingField', key: 'pricing.models' }, 'text', 'secret'));

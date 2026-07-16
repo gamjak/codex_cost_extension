@@ -79,3 +79,15 @@ Final verification after the runtime change:
 - Focused client regression: PASS; full Vitest run reported 31 files and 175 tests.
 - `pnpm run check`: PASS; TypeScript, ESLint, 31 files, 175 tests.
 - Compile, VSIX package/prepublish, and package verification: PASS; package verifier accepted all 46 required paths.
+
+## Custom-range event deduplication
+
+The real browser sequence for a committed edit (`change` followed by capture-phase `blur`) previously emitted the same valid `setRange` message twice. A client-local serialized range key now suppresses only an immediately equivalent range value. A later genuinely different valid range still posts once, and invalid ranges never update the deduplication key.
+
+RED evidence: the combined-event regression received two identical posts where one was required.
+
+Final verification:
+
+- Focused combined-event regression: PASS; the same edit posts once and a later changed range adds exactly one post.
+- `pnpm run check`: PASS; TypeScript, ESLint, 31 test files, 176 tests.
+- Compile, VSIX package/prepublish, and package verification: PASS; 46 required paths verified.

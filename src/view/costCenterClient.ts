@@ -3,6 +3,7 @@ export function buildCostCenterClientScript(): string {
   const vscode = acquireVsCodeApi();
   const post = (message) => vscode.postMessage(message);
   const settingFieldKeys = new Set(['budget.dayAmount', 'budget.weekAmount', 'budget.monthAmount', 'budget.warningPercent', 'display.showSession', 'display.showWorkspace', 'display.showBudget', 'display.budgetPeriod', 'display.defaultRange', 'display.compareByDefault', 'dataSources.logRoots', 'dataSources.include', 'notifications.enabled', 'notifications.everyAmount', 'notifications.thresholdSummary']);
+  let lastPostedRange;
   const rangeValue = () => {
     const range = document.querySelector('[data-control="range"]');
     const compare = document.querySelector('[data-control="compare"]');
@@ -44,6 +45,9 @@ export function buildCostCenterClientScript(): string {
         }
       }
       showRangeError('');
+      const rangeKey = JSON.stringify(value);
+      if (rangeKey === lastPostedRange) return;
+      lastPostedRange = rangeKey;
       return post({ type: 'setRange', value });
     }
     if (type === 'setSection') return post({ type: 'setSection', value: target.dataset.value });
