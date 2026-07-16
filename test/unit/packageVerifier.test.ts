@@ -7,6 +7,21 @@ import { describe, expect, it } from 'vitest';
 
 const requiredPackagePaths = [
   'extension/out/src/extension.js',
+  'extension/out/src/config.js',
+  'extension/out/src/domain/costCenterAnalytics.js',
+  'extension/out/src/domain/costCenterSettings.js',
+  'extension/out/src/domain/costCenterState.js',
+  'extension/out/src/domain/costCenterTimeRange.js',
+  'extension/out/src/domain/costCenterTypes.js',
+  'extension/out/src/domain/sessionFacts.js',
+  'extension/out/src/view/costCenter.js',
+  'extension/out/src/view/costCenterClient.js',
+  'extension/out/src/view/costCenterController.js',
+  'extension/out/src/view/costCenterOverviewPresentation.js',
+  'extension/out/src/view/costCenterPresentation.js',
+  'extension/out/src/view/costCenterSettingsPresentation.js',
+  'extension/out/src/view/costCenterSummary.js',
+  'extension/out/src/view/costCenterTablePresentation.js',
   'extension/package.json',
   'extension/readme.md',
   'extension/LICENSE.txt',
@@ -87,6 +102,21 @@ describe('package verifier', () => {
     expect(result.stderr).toContain('extension/out/src/extension.js');
   });
 
+  it('rejects a package missing a compiled Cost Center runtime module', () => {
+    const requiredRuntimePath = 'extension/out/src/view/costCenterController.js';
+    const result = verifyPackage(requiredPackagePaths.filter((entry) => entry !== requiredRuntimePath));
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain(requiredRuntimePath);
+  });
+
+  it('rejects a package missing the copied-summary runtime module', () => {
+    const requiredRuntimePath = 'extension/out/src/view/costCenterSummary.js';
+    const result = verifyPackage(requiredPackagePaths.filter((entry) => entry !== requiredRuntimePath));
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain(requiredRuntimePath);
+  });
+
   it('rejects generated test and Vitest configuration output', () => {
     const result = verifyPackage([...requiredPackagePaths, 'extension/out/test/packageVerifier.test.js']);
 
@@ -97,6 +127,18 @@ describe('package verifier', () => {
       const configResult = verifyPackage([...requiredPackagePaths, configPath]);
       expect(configResult.status).not.toBe(0);
       expect(configResult.stderr).toContain(configPath);
+    }
+  });
+
+  it('rejects deleted legacy dashboard runtime output', () => {
+    for (const legacyPath of [
+      'extension/out/src/view/costDashboard.js',
+      'extension/out/src/view/dashboardPresentation.js'
+    ]) {
+      const result = verifyPackage([...requiredPackagePaths, legacyPath]);
+
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).toContain(legacyPath);
     }
   });
 

@@ -20,6 +20,7 @@ export interface SessionUsageSnapshot {
 export interface ParsedSession {
   sessionId: string;
   filePath: string;
+  startedAt?: string;
   updatedAt: string;
   source?: string;
   originator?: string;

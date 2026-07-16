@@ -2,7 +2,7 @@
   "name": "codex-cost-extension",
   "displayName": "%extension.displayName%",
   "description": "%extension.description%",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "packageManager": "pnpm@11.7.0",
   "publisher": "gamjak",
   "license": "MIT",
@@ -36,7 +36,7 @@
     "onCommand:codexCost.setScopeAll",
     "onCommand:codexCost.openSettings",
     "onCommand:codexCost.openCostControl",
-    "onCommand:codexCost.openDashboard",
+    "onCommand:codexCost.openCostCenter",
     "onCommand:codexCost.configureDailyBudget",
     "onCommand:codexCost.copySummary"
   ],
@@ -85,8 +85,8 @@
         "icon": "$(dashboard)"
       },
       {
-        "command": "codexCost.openDashboard",
-        "title": "Open Cost Dashboard",
+        "command": "codexCost.openCostCenter",
+        "title": "%command.costCenter%",
         "icon": "$(dashboard)"
       },
       {
@@ -103,7 +103,7 @@
     "menus": {
       "view/title": [
         {
-          "command": "codexCost.openCostControl",
+          "command": "codexCost.openCostCenter",
           "when": "view == codexCost.usage",
           "group": "navigation@0"
         },
@@ -126,21 +126,11 @@
           "command": "codexCost.openSettings",
           "when": "view == codexCost.usage",
           "group": "navigation@3"
-        },
-        {
-          "command": "codexCost.configureDailyBudget",
-          "when": "view == codexCost.usage",
-          "group": "navigation@4"
-        },
-        {
-          "command": "codexCost.copySummary",
-          "when": "view == codexCost.usage",
-          "group": "navigation@5"
         }
       ],
       "view/item/context": [
         {
-          "command": "codexCost.openDashboard",
+          "command": "codexCost.openCostCenter",
           "when": "view == codexCost.usage && viewItem == codexCost.today",
           "group": "inline"
         },
@@ -262,6 +252,21 @@
           "default": "workspace",
           "description": "Default scope used when the Codex Cost view opens."
         },
+        "codexCost.costCenter.defaultRange": {
+          "type": "string",
+          "enum": [
+            "today",
+            "7d",
+            "30d"
+          ],
+          "default": "7d",
+          "description": "Default time range used before the Cost Center has remembered a personal selection."
+        },
+        "codexCost.costCenter.compareByDefault": {
+          "type": "boolean",
+          "default": false,
+          "description": "Compare with the immediately preceding equivalent period before a personal selection is remembered."
+        },
         "codexCost.autoRefreshSeconds": {
           "type": "integer",
           "default": 60,
@@ -296,6 +301,11 @@
           "type": "boolean",
           "default": true,
           "description": "Show one warning when the selected workspace budget reaches its threshold and one when it is exceeded. Enabled by default."
+        },
+        "codexCost.budget.notifications.thresholdSummary": {
+          "type": "boolean",
+          "default": true,
+          "description": "Include a local spend summary in the first notification when a budget threshold is crossed."
         },
         "codexCost.budget.notifications.everyAmount": {
           "type": "number",
@@ -344,14 +354,14 @@
     }
   },
   "scripts": {
-    "compile": "tsc -p tsconfig.build.json",
+    "compile": "node scripts/clean-build.mjs && tsc -p tsconfig.build.json",
     "check": "tsc -p tsconfig.json --noEmit && eslint . && vitest run",
     "lint": "eslint .",
     "package": "vsce package --no-dependencies",
     "verify-package": "node scripts/run-package-verifier.mjs",
     "watch": "tsc -watch -p tsconfig.build.json",
     "test": "vitest run",
-    "vscode:prepublish": "tsc -p tsconfig.build.json && eslint . && vitest run"
+    "vscode:prepublish": "node scripts/clean-build.mjs && tsc -p tsconfig.build.json && eslint . && vitest run"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

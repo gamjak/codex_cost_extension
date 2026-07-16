@@ -103,7 +103,7 @@ describe('buildUsageTree', () => {
       id: 'today',
       label: 'Today',
       description: '0,50 $/1,00 $ · On track',
-      command: 'codexCost.openDashboard',
+      command: 'codexCost.openCostCenter',
       contextValue: 'codexCost.today'
     });
 

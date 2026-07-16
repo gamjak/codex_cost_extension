@@ -1,5 +1,19 @@
 const requiredPaths = [
   'extension/out/src/extension.js',
+  'extension/out/src/domain/costCenterAnalytics.js',
+  'extension/out/src/domain/costCenterSettings.js',
+  'extension/out/src/domain/costCenterState.js',
+  'extension/out/src/domain/costCenterTimeRange.js',
+  'extension/out/src/domain/costCenterTypes.js',
+  'extension/out/src/domain/sessionFacts.js',
+  'extension/out/src/view/costCenter.js',
+  'extension/out/src/view/costCenterClient.js',
+  'extension/out/src/view/costCenterController.js',
+  'extension/out/src/view/costCenterOverviewPresentation.js',
+  'extension/out/src/view/costCenterPresentation.js',
+  'extension/out/src/view/costCenterSettingsPresentation.js',
+  'extension/out/src/view/costCenterSummary.js',
+  'extension/out/src/view/costCenterTablePresentation.js',
   'extension/package.json',
   'extension/readme.md',
   'extension/LICENSE.txt',
@@ -16,6 +30,11 @@ const forbiddenPrefixes = [
   'extension/work/',
   'extension/.superpowers/'
 ];
+
+const forbiddenPaths = new Set([
+  'extension/out/src/view/costDashboard.js',
+  'extension/out/src/view/dashboardPresentation.js'
+]);
 
 function fail(message) {
   console.error(`Package verification failed: ${message}`);
@@ -35,8 +54,9 @@ function verify(paths) {
     return;
   }
 
-  const forbiddenPath = paths.find((packagePath) =>
-    forbiddenPrefixes.some((prefix) => packagePath.startsWith(prefix))
+  const forbiddenPath = paths.find(
+    (packagePath) =>
+      forbiddenPaths.has(packagePath) || forbiddenPrefixes.some((prefix) => packagePath.startsWith(prefix))
   );
   if (forbiddenPath) {
     fail(`forbidden package path: ${forbiddenPath}. Update .vscodeignore or the build configuration.`);

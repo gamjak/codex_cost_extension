@@ -2,6 +2,15 @@
 
 All notable changes to Codex Cost are documented here.
 
+## 0.5.0 - 2026-07-16
+
+- Unify workspace and all-session analysis in the Cost Center, available from the status bar, sidebar, and Command Palette.
+- Add Today, 7-day, 30-day, and custom ranges with optional comparison to the preceding equivalent period.
+- Add Sessions, Projects, and Models analysis with drill-down into filtered sessions.
+- Remember Cost Center scope, range, comparison, and section preferences between visits.
+- Add guided settings for common choices while retaining the complete advanced VS Code settings.
+- Improve empty, partial-price, invalid-range, and unavailable-log-root states with focused guidance and diagnostics.
+
 ## 0.4.0 - 2026-07-15
 
 - Add a native daily cost-control loop with spend, daily budget, remaining budget, and end-of-day projection.

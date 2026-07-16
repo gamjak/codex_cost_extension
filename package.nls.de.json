@@ -5,5 +5,6 @@
   "command.refresh": "Codex-Kosten aktualisieren",
   "command.workspace": "Workspace-Sitzungen anzeigen",
   "command.all": "Alle Sitzungen anzeigen",
-  "command.settings": "Codex-Kosteneinstellungen öffnen"
+  "command.settings": "Codex-Kosteneinstellungen öffnen",
+  "command.costCenter": "Codex-Kostenzentrale öffnen"
 }

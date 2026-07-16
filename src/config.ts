@@ -6,15 +6,22 @@ import * as vscode from 'vscode';
 import type { BudgetPeriod, BudgetSettings, PricingByModel, StatusBarVisibility, ViewScope } from './domain/types';
 
 export interface ExtensionConfig {
+  rawLogRoots: string[];
   logRoots: string[];
   pricingByModel: PricingByModel;
+  customPricingModels: Set<string>;
   sessionSources: string[];
   scopeDefault: ViewScope;
+  costCenterDefaults: {
+    range: 'today' | '7d' | '30d';
+    compare: boolean;
+  };
   autoRefreshSeconds: number;
   filterStartDate: string;
   budgetSettings: BudgetSettings;
   budgetNotificationsEnabled: boolean;
   budgetNotificationEveryAmount: number;
+  budgetNotificationThresholdSummary: boolean;
   statusBarVisibility: StatusBarVisibility;
   statusBarBudgetPeriod: BudgetPeriod;
 }
@@ -100,6 +107,10 @@ function normalizeBudgetPeriod(value: unknown): BudgetPeriod {
   return value === 'day' || value === 'week' || value === 'month' ? value : 'month';
 }
 
+function normalizeCostCenterRange(value: unknown): 'today' | '7d' | '30d' {
+  return value === 'today' || value === '7d' || value === '30d' ? value : '7d';
+}
+
 function normalizeBoolean(value: unknown, fallback: boolean): boolean {
   return typeof value === 'boolean' ? value : fallback;
 }
@@ -114,6 +125,12 @@ export function readExtensionConfig(): ExtensionConfig {
   const rawScopeDefault = configuration.get<string>('scopeDefault', 'workspace');
   const scopeDefault: ViewScope = rawScopeDefault === 'all' ? 'all' : 'workspace';
   const rawPricing = configuration.get<Record<string, unknown>>('pricing.models', {});
+  const pricingInspection = configuration.inspect<Record<string, unknown>>('pricing.models');
+  const customPricingModels = new Set([
+    pricingInspection?.globalValue,
+    pricingInspection?.workspaceValue,
+    pricingInspection?.workspaceFolderValue
+  ].flatMap((value) => Object.keys(normalizePricing(value))));
   const rawSources = configuration.get<unknown>('sources.include');
   const sessionSources = Array.isArray(rawSources)
     ? Array.from(new Set(rawSources
@@ -136,6 +153,14 @@ export function readExtensionConfig(): ExtensionConfig {
   const budgetNotificationEveryAmount = normalizePositiveNumber(
     configuration.get<number>('budget.notifications.everyAmount', 0)
   );
+  const costCenterDefaults = {
+    range: normalizeCostCenterRange(configuration.get<unknown>('costCenter.defaultRange', '7d')),
+    compare: normalizeBoolean(configuration.get<unknown>('costCenter.compareByDefault', false), false)
+  };
+  const budgetNotificationThresholdSummary = normalizeBoolean(
+    configuration.get<unknown>('budget.notifications.thresholdSummary', true),
+    true
+  );
   const statusBarVisibility: StatusBarVisibility = {
     showSession: normalizeBoolean(configuration.get<boolean>('statusBar.showSession', true), true),
     showWorkspace: normalizeBoolean(configuration.get<boolean>('statusBar.showWorkspace', true), true),
@@ -144,15 +169,19 @@ export function readExtensionConfig(): ExtensionConfig {
   const statusBarBudgetPeriod = normalizeBudgetPeriod(configuration.get<string>('statusBar.budgetPeriod', 'month'));
 
   return {
+    rawLogRoots: rawRoots,
     logRoots: Array.from(new Set(rawRoots.filter((root) => root.trim()).map(resolveHomePath))),
     pricingByModel: normalizePricing(rawPricing),
+    customPricingModels,
     sessionSources,
     scopeDefault,
+    costCenterDefaults,
     autoRefreshSeconds,
     filterStartDate,
     budgetSettings,
     budgetNotificationsEnabled,
     budgetNotificationEveryAmount,
+    budgetNotificationThresholdSummary,
     statusBarVisibility,
     statusBarBudgetPeriod
   };

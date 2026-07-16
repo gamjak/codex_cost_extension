@@ -35,11 +35,13 @@ describe('tooling configuration', () => {
   it('separates runtime compilation from type checking and tests', () => {
     const scripts = readManifest().scripts;
 
-    expect(scripts.compile).toBe('tsc -p tsconfig.build.json');
+    expect(scripts.compile).toBe('node scripts/clean-build.mjs && tsc -p tsconfig.build.json');
     expect(scripts.check).toBe('tsc -p tsconfig.json --noEmit && eslint . && vitest run');
     expect(scripts.test).toBe('vitest run');
     expect(scripts.watch).toBe('tsc -watch -p tsconfig.build.json');
-    expect(scripts['vscode:prepublish']).toBe('tsc -p tsconfig.build.json && eslint . && vitest run');
+    expect(scripts['vscode:prepublish']).toBe(
+      'node scripts/clean-build.mjs && tsc -p tsconfig.build.json && eslint . && vitest run'
+    );
 
     expect(vitestConfig.test?.exclude).toEqual([
       'out/**',
@@ -153,7 +155,8 @@ describe('tooling configuration', () => {
     const featureTemplate = readText('.github/ISSUE_TEMPLATE/feature-request.yml');
     const pullRequestTemplate = readText('.github/pull_request_template.md');
 
-    expect(manifest.version).toBe('0.4.0');
+    expect(manifest.version).toBe('0.5.0');
+    expect(changelog).toContain('## 0.5.0 - 2026-07-16');
     expect(changelog).toContain('## 0.4.0 - 2026-07-15');
     expect(changelog).toContain('## 0.3.0 - 2026-07-15');
     expect(changelog).toContain('does not automatically publish to the VS Code Marketplace');

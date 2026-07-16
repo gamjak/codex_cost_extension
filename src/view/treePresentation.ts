@@ -162,24 +162,24 @@ function buildTodayNode(control: CostControlReport): TreeNodeData {
     'today',
     'Today',
     [
-      leafNode('today-spent', 'Estimated spend', text.spentText, text.tooltip, 'dashboard', 'codexCost.openDashboard', 'codexCost.today'),
+      leafNode('today-spent', 'Estimated spend', text.spentText, text.tooltip, 'dashboard', 'codexCost.openCostCenter', 'codexCost.today'),
       leafNode(
         'today-budget',
         'Daily budget',
         text.budgetText ?? 'Not configured',
         text.budgetText ? 'Configured daily USD budget.' : 'Configure a positive daily USD budget.',
         text.budgetText ? 'dashboard' : 'gear',
-        text.budgetText ? 'codexCost.openDashboard' : 'codexCost.configureDailyBudget',
+        text.budgetText ? 'codexCost.openCostCenter' : 'codexCost.configureDailyBudget',
         text.budgetText ? 'codexCost.today' : 'codexCost.dailyBudget'
       ),
       ...(text.remainingText ? [leafNode('today-remaining', 'Remaining', text.remainingText.replace('Remaining: ', ''), text.remainingText, 'check')] : []),
       ...(text.projectedText ? [leafNode('today-projected', 'Projection', text.projectedText.replace('Projected end of day: ', ''), text.projectedText, 'graph-line')] : []),
-      leafNode('today-state', 'Status', text.label, text.tooltip, text.tone === 'error' ? 'error' : text.tone === 'warning' ? 'warning' : 'check', 'codexCost.openDashboard', 'codexCost.today')
+      leafNode('today-state', 'Status', text.label, text.tooltip, text.tone === 'error' ? 'error' : text.tone === 'warning' ? 'warning' : 'check', 'codexCost.openCostCenter', 'codexCost.today')
     ],
     text.text.replace('Today ', ''),
     text.tooltip,
     text.tone === 'error' ? 'error' : text.tone === 'warning' ? 'warning' : 'dashboard',
-    'codexCost.openDashboard',
+    'codexCost.openCostCenter',
     'codexCost.today'
   );
 }

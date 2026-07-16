@@ -90,12 +90,18 @@ export async function parseSessionFileWithDiagnostics(filePath: string): Promise
     }
 
     const timestamp = asString(parsed.timestamp);
-    const hasValidTimestamp = timestamp !== undefined && Number.isFinite(Date.parse(timestamp));
+    const timestampMs = timestamp === undefined ? Number.NaN : Date.parse(timestamp);
+    const hasValidTimestamp = Number.isFinite(timestampMs);
     if (timestamp && !hasValidTimestamp) {
       diagnostics.invalidTimestamps += 1;
     }
-    if (timestamp && hasValidTimestamp && timestamp > session.updatedAt) {
-      session.updatedAt = timestamp;
+    if (timestamp && hasValidTimestamp) {
+      if (!session.startedAt || timestampMs < Date.parse(session.startedAt)) {
+        session.startedAt = timestamp;
+      }
+      if (!session.updatedAt || timestampMs > Date.parse(session.updatedAt)) {
+        session.updatedAt = timestamp;
+      }
     }
 
     const type = asString(parsed.type);
