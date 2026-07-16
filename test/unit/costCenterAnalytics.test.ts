@@ -62,6 +62,22 @@ describe('buildCostCenterReport', () => {
     expect(report.sessions[0]).toMatchObject({ partial: true });
   });
 
+  it('classifies a mixed-case session model with normalized custom pricing as custom', () => {
+    const report = buildReport({
+      sessions: [{
+        ...sessions[0],
+        usageHistory: sessions[0].usageHistory.map((delta) => ({
+          ...delta,
+          model: delta.model === 'gpt-5.4-mini' ? 'GPT-5.4-MINI' : delta.model
+        }))
+      }]
+    });
+
+    expect(report.models.find((row) => row.model === 'GPT-5.4-MINI')).toMatchObject({
+      pricingState: 'custom'
+    });
+  });
+
   it('intersects project and model drill-down filters', () => {
     const report = buildReport({ filters: { scope: 'all', range: { kind: '7d', compare: false }, section: 'sessions', projectKey: 'c:\\repo\\one', model: 'gpt-5.4-mini' } });
     expect(report.sessions.every((row) => row.projectKey === 'c:\\repo\\one' && row.models.includes('gpt-5.4-mini'))).toBe(true);

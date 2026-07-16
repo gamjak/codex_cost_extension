@@ -64,6 +64,10 @@ function labelRange(filters: CostCenterFilters): string {
   return filters.range.kind === 'today' ? 'Today' : filters.range.kind === '7d' ? 'Last 7 days' : 'Last 30 days';
 }
 
+function normalizeModelKey(model: string): string {
+  return model.trim().toLowerCase();
+}
+
 function allowedEntries(input: BuildCostCenterReportInput, interval: DateInterval, pointInterval?: DateInterval): FactDelta[] {
   const sources = new Set((input.sessionSources ?? []).map((source) => source.toLowerCase()));
   return buildSessionFacts(input.sessions, input.workspaceRoots).flatMap((fact) => {
@@ -122,7 +126,7 @@ function projectRows(entries: readonly FactDelta[], comparison: readonly FactDel
 
 function modelRows(entries: readonly FactDelta[], total: number | undefined, input: BuildCostCenterReportInput): CostCenterModelRow[] {
   const groups = new Map<string, FactDelta[]>(); entries.forEach((entry) => { const key = entry.delta.model ?? 'unknown'; groups.set(key, [...(groups.get(key) ?? []), entry]); });
-  return Array.from(groups.entries()).map(([model, group]) => { const value = aggregate(group); const pricingState: CostCenterModelRow['pricingState'] = !resolveModelPricing(model === 'unknown' ? undefined : model, input.pricingByModel) ? 'missing' : input.customPricingModels.has(model) ? 'custom' : 'bundled'; return { model, estimatedCost: value.cost, tokens: value.tokens, sessionCount: value.sessions.size, projectCount: value.projects.size, averageCostPerSession: value.cost !== undefined && value.sessions.size ? value.cost / value.sessions.size : undefined, sharePercent: total && value.cost !== undefined ? value.cost / total * 100 : undefined, pricingState, partial: value.partial }; }).sort((left, right) => (right.estimatedCost ?? -1) - (left.estimatedCost ?? -1) || left.model.localeCompare(right.model));
+  return Array.from(groups.entries()).map(([model, group]) => { const value = aggregate(group); const pricingState: CostCenterModelRow['pricingState'] = !resolveModelPricing(model === 'unknown' ? undefined : model, input.pricingByModel) ? 'missing' : input.customPricingModels.has(normalizeModelKey(model)) ? 'custom' : 'bundled'; return { model, estimatedCost: value.cost, tokens: value.tokens, sessionCount: value.sessions.size, projectCount: value.projects.size, averageCostPerSession: value.cost !== undefined && value.sessions.size ? value.cost / value.sessions.size : undefined, sharePercent: total && value.cost !== undefined ? value.cost / total * 100 : undefined, pricingState, partial: value.partial }; }).sort((left, right) => (right.estimatedCost ?? -1) - (left.estimatedCost ?? -1) || left.model.localeCompare(right.model));
 }
 
 function countLocalCalendarDays(interval: DateInterval): number {
