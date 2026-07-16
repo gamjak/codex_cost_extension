@@ -4,14 +4,17 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { SessionFileDescriptor } from '../../src/data/sessionScanner';
+import type {
+  findSessionFileDescriptors as FindSessionFileDescriptors,
+  SessionFileDescriptor
+} from '../../src/data/sessionScanner';
 
 const scannerMock = vi.hoisted(() => ({
   transform: undefined as undefined | ((descriptors: SessionFileDescriptor[]) => SessionFileDescriptor[])
 }));
 
 vi.mock('../../src/data/sessionScanner', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../src/data/sessionScanner')>();
+  const actual = await importOriginal<{ findSessionFileDescriptors: typeof FindSessionFileDescriptors }>();
   return {
     ...actual,
     findSessionFileDescriptors: async (...args: Parameters<typeof actual.findSessionFileDescriptors>) => {
@@ -128,10 +131,11 @@ describe('SessionRepository', () => {
     scannerMock.transform = (descriptors) => descriptors.map((descriptor) => {
       scan += 1;
       if (scan === 1) {
-        initialCtime = descriptor.ctimeMs as number;
+        initialCtime = descriptor.ctimeMs;
         return { ...descriptor, dev: 10, ino: 20 };
       }
-      const { ino: _ino, ...partial } = descriptor;
+      const partial: SessionFileDescriptor = { ...descriptor };
+      delete partial.ino;
       return { ...partial, dev: 10, ctimeMs: initialCtime };
     });
     const repository = new SessionRepository({ onParse: (kind) => events.push(kind) });
