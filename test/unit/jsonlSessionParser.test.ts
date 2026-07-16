@@ -2,7 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { parseSessionFile, parseSessionFileWithDiagnostics } from '../../src/data/jsonlSessionParser';
 import {
@@ -186,6 +186,23 @@ describe('parseSessionFile', () => {
     expect(Buffer.from(checkpoint.checkpoint.pendingBytes)).toEqual(partial);
     expect(checkpoint.checkpoint.bytesRead).toBe(Buffer.byteLength(complete) + partial.length);
     expect(checkpoint.result.diagnostics.malformedLines).toBe(0);
+  });
+
+  it('accumulates a multi-chunk final fragment with one bounded concatenation', async () => {
+    const partial = Buffer.from(`{"payload":"${'x'.repeat(256 * 1024)}`);
+    const filePath = await temporaryRawJsonl(partial);
+    const concatenate = Buffer.concat.bind(Buffer);
+    const concatSpy = vi.spyOn(Buffer, 'concat').mockImplementation((...args) => concatenate(...args));
+
+    try {
+      const checkpoint = await parseSessionToCheckpoint(filePath);
+
+      expect(Buffer.from(checkpoint.checkpoint.pendingBytes)).toEqual(partial);
+      expect(checkpoint.result.diagnostics.malformedLines).toBe(0);
+      expect(concatSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      concatSpy.mockRestore();
+    }
   });
 
   it('retains an incomplete JSON fragment without reporting it malformed until completed', async () => {

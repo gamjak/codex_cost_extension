@@ -189,13 +189,16 @@ async function consume(filePath: string, source: SessionParseCheckpoint): Promis
 async function consumeFull(filePath: string): Promise<SessionCheckpointResult> {
   const checkpoint = createCheckpoint(filePath);
   const stream = fs.createReadStream(filePath);
-  let tail: Buffer<ArrayBufferLike> = Buffer.alloc(0);
+  let tailChunks: Buffer<ArrayBufferLike>[] = [];
   stream.on('data', (value: Buffer) => {
     checkpoint.bytesRead += value.length;
     const lastNewline = value.lastIndexOf(0x0a);
-    tail = lastNewline === -1
-      ? Buffer.concat([tail, value])
-      : value.subarray(lastNewline + 1);
+    if (lastNewline === -1) {
+      tailChunks.push(value);
+    } else {
+      const tail = value.subarray(lastNewline + 1);
+      tailChunks = tail.length === 0 ? [] : [tail];
+    }
   });
   const reader = readline.createInterface({ input: stream, crlfDelay: Infinity });
   let previousLine: string | undefined;
@@ -207,6 +210,11 @@ async function consumeFull(filePath: string): Promise<SessionCheckpointResult> {
     previousLine = line;
   }
 
+  const tail = tailChunks.length === 0
+    ? Buffer.alloc(0)
+    : tailChunks.length === 1
+      ? tailChunks[0]
+      : Buffer.concat(tailChunks);
   if (previousLine !== undefined) {
     if (tail.length === 0) {
       reduceSessionLine(checkpoint, previousLine);
