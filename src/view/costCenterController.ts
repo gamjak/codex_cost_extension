@@ -3,7 +3,7 @@ import type { LoadSessionsResult } from '../data/sessionRepository';
 import { buildCostCenterReport } from '../domain/costCenterAnalytics';
 import {
   createGuidedSettingsDraft, resetSettingsGroup, settingsUpdates, validateGuidedSettings,
-  type GuidedSettingField, type GuidedSettingsDraft, type GuidedSettingsGroup, type GuidedSettingsUpdate
+  type GuidedSettingField, type GuidedSettingsDraft, type GuidedSettingsGroup
 } from '../domain/costCenterSettings';
 import {
   preferencesFromState, readCostCenterPreferences, reduceCostCenterState,
@@ -25,7 +25,7 @@ export interface CostCenterControllerDependencies {
   getSnapshot(): CostDataSnapshot | undefined;
   refresh(): Promise<void>;
   readConfiguration(): ExtensionConfig;
-  updateConfiguration(key: string, value: unknown): Promise<void>;
+  applySettingsBatch(updates: readonly { key: string; value: unknown }[]): Promise<void>;
   loadRoots(roots: readonly string[]): Promise<LoadSessionsResult>;
   executeCommand(command: string, ...args: unknown[]): PromiseLike<unknown>;
   showInformationMessage(message: string): PromiseLike<unknown>;
@@ -109,12 +109,9 @@ export class CostCenterController {
     const settings = this.requireSettings(); settings.errors = validateGuidedSettings(settings.draft);
     if (Object.keys(settings.errors).length) return;
     const updates = settingsUpdates(this.deps.readConfiguration(), settings.draft);
-    for (const update of updates) await this.applyUpdate(update);
+    await this.deps.applySettingsBatch(updates.map((update) => ({ key: CONFIG_KEYS[update.key], value: update.value })));
     settings.original = structuredClone(settings.draft);
-    if (updates.some(({ key }) => key === 'dataSources.logRoots' || key === 'dataSources.include')) await this.deps.refresh();
   }
-
-  private applyUpdate(update: GuidedSettingsUpdate): Promise<void> { return this.deps.updateConfiguration(CONFIG_KEYS[update.key], update.value); }
   private async checkData(): Promise<void> {
     const settings = this.requireSettings();
     settings.diagnostics = await Promise.all(settings.draft.dataSources.logRoots.map(async (root) => {
@@ -128,7 +125,7 @@ export class CostCenterController {
 
   private rebuild(): CostCenterViewModel {
     const snapshot = this.deps.getSnapshot(); if (!snapshot) throw new Error('Cost data is unavailable.');
-    const config = snapshot.configuration; const filters = this.state!.filters;
+    const config = this.deps.readConfiguration(); const filters = this.state!.filters;
     const report = buildCostCenterReport({ sessions: snapshot.sessions, filesCount: snapshot.filesCount, pricingByModel: config.pricingByModel, customPricingModels: config.customPricingModels, repositoryWarnings: snapshot.warnings, workspaceRoots: snapshot.workspaceRoots, sessionSources: config.sessionSources, budgetSettings: config.budgetSettings, filters, pinnedProjects: normalizedPaths(this.deps.globalState.get<string[]>(PINNED_PROJECTS_KEY, []) ?? []), excludedProjects: normalizedPaths(this.deps.globalState.get<string[]>(EXCLUDED_PROJECTS_KEY, []) ?? []), now: snapshot.refreshedAt });
     const settings = this.settings && { open: true as const, group: this.settings.group, draft: this.settings.draft, errors: this.settings.errors, diagnostics: this.settings.diagnostics, dirty: JSON.stringify(this.settings.draft) !== JSON.stringify(this.settings.original) };
     this.model = { report, uiState: this.state!, settings }; return this.model;

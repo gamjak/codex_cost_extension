@@ -82,7 +82,7 @@ export class CodexCostTreeProvider implements vscode.TreeDataProvider<TreeNode> 
     108
   );
   private readonly output = vscode.window.createOutputChannel('Codex Cost');
-  private readonly sessionRepository = new SessionRepository();
+  private readonly sessionRepository: Pick<SessionRepository, 'load'>;
   private readonly refreshCoordinator = new RefreshCoordinator(() => this.performRefresh());
   private nodes: TreeNode[] = [
     leafNode('loading', 'Loading Codex session data...', undefined, undefined, 'loading~spin')
@@ -97,7 +97,8 @@ export class CodexCostTreeProvider implements vscode.TreeDataProvider<TreeNode> 
 
   readonly onDidChangeTreeData = this.onDidChangeTreeDataEmitter.event;
 
-  constructor(private readonly context: vscode.ExtensionContext) {
+  constructor(private readonly context: vscode.ExtensionContext, sessionRepository: Pick<SessionRepository, 'load'> = new SessionRepository()) {
+    this.sessionRepository = sessionRepository;
     this.scope = context.workspaceState.get<ViewScope>(SCOPE_KEY) ?? readExtensionConfig().scopeDefault;
 
     this.sessionStatusItem.command = 'codexCost.openCostCenter';

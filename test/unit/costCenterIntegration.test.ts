@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { ExtensionConfig } from '../../src/config';
 import type { CostCenterPreferences } from '../../src/domain/costCenterState';
 import type { ParsedSession } from '../../src/domain/types';
+import { ConfigurationRefreshController } from '../../src/configurationRefreshController';
 import { CostCenterController, type CostCenterControllerDependencies } from '../../src/view/costCenterController';
 import type { CostDataSnapshot } from '../../src/view/costTreeProvider';
 
@@ -31,7 +32,7 @@ function setup(saved?: CostCenterPreferences) {
   let latest = snapshot();
   const deps: CostCenterControllerDependencies = {
     workspaceState, globalState, getSnapshot: () => latest, refresh: vi.fn(() => Promise.resolve()),
-    readConfiguration: () => configuration, updateConfiguration: vi.fn(() => Promise.resolve()),
+    readConfiguration: () => configuration, applySettingsBatch: vi.fn(() => Promise.resolve()),
     loadRoots: vi.fn((roots: readonly string[]) => Promise.resolve({ sessions: [], filesCount: roots[0] === 'missing' ? 0 : 1, warnings: [] })),
     executeCommand: vi.fn(() => Promise.resolve()), showInformationMessage: vi.fn(() => Promise.resolve()), reportError: vi.fn()
   };
@@ -64,18 +65,18 @@ describe('Cost Center integration controller', () => {
     await controller.handle({ type: 'openSettings' });
     await controller.handle({ type: 'updateSettingField', key: 'budget.dayAmount', value: 12 });
     await controller.handle({ type: 'saveSettings' });
-    expect(deps.updateConfiguration).toHaveBeenCalledWith('budget.dayAmount', 12);
+    expect(deps.applySettingsBatch).toHaveBeenCalledWith([{ key: 'budget.dayAmount', value: 12 }]);
     expect(deps.refresh).not.toHaveBeenCalled();
 
     await controller.handle({ type: 'updateSettingField', key: 'dataSources.logRoots', value: ['new-root'] });
     await controller.handle({ type: 'saveSettings' });
-    expect(deps.updateConfiguration).toHaveBeenCalledWith('logRoots', ['new-root']);
-    expect(deps.refresh).toHaveBeenCalledTimes(1);
+    expect(deps.applySettingsBatch).toHaveBeenLastCalledWith(expect.arrayContaining([{ key: 'logRoots', value: ['new-root'] }]));
+    expect(deps.refresh).not.toHaveBeenCalled();
 
-    const writesBeforeInvalidSave = vi.mocked(deps.updateConfiguration).mock.calls.length;
+    const writesBeforeInvalidSave = vi.mocked(deps.applySettingsBatch).mock.calls.length;
     await controller.handle({ type: 'updateSettingField', key: 'budget.dayAmount', value: -1 });
     await controller.handle({ type: 'saveSettings' });
-    expect(deps.updateConfiguration).toHaveBeenCalledTimes(writesBeforeInvalidSave);
+    expect(deps.applySettingsBatch).toHaveBeenCalledTimes(writesBeforeInvalidSave);
   });
 
   it('checks each draft root, opens advanced settings, and tests notifications without writes', async () => {
@@ -88,7 +89,7 @@ describe('Cost Center integration controller', () => {
     expect(deps.executeCommand).toHaveBeenNthCalledWith(1, 'workbench.action.openSettings', '@ext:gamjak.codex-cost-extension codexCost.pricing.models');
     expect(deps.executeCommand).toHaveBeenNthCalledWith(2, 'workbench.action.openSettings', '@ext:gamjak.codex-cost-extension');
     await controller.handle({ type: 'testNotification' });
-    expect(deps.showInformationMessage).toHaveBeenCalledOnce(); expect(deps.updateConfiguration).not.toHaveBeenCalled();
+    expect(deps.showInformationMessage).toHaveBeenCalledOnce(); expect(deps.applySettingsBatch).not.toHaveBeenCalled();
   });
 
   it('reports render errors while retaining its last model', async () => {
@@ -98,3 +99,38 @@ describe('Cost Center integration controller', () => {
     expect(controller.getModel()).toBe(model);
   });
 });
+
+describe('real configuration listener and guided batch coordination', () => {
+  it('reaggregates ordinary settings from cache and rescans only data-source changes', async () => {
+    const refresh = vi.fn(() => Promise.resolve()); const reaggregate = vi.fn(() => Promise.resolve());
+    const coordinator = new ConfigurationRefreshController(refresh, reaggregate);
+    await coordinator.handleChange(eventFor('codexCost.budget.dayAmount'));
+    await coordinator.handleChange(eventFor('codexCost.costCenter.defaultRange'));
+    expect(refresh).not.toHaveBeenCalled(); expect(reaggregate).toHaveBeenCalledTimes(2);
+    await coordinator.handleChange(eventFor('codexCost.logRoots'));
+    expect(refresh).toHaveBeenCalledOnce();
+  });
+
+  it('suppresses every listener event for the entire guided batch and publishes exactly once afterward', async () => {
+    const refresh = vi.fn(() => Promise.resolve()); const reaggregate = vi.fn(() => Promise.resolve());
+    const coordinator = new ConfigurationRefreshController(refresh, reaggregate);
+    const update = vi.fn(async (key: string) => { await coordinator.handleChange(eventFor(`codexCost.${key}`)); });
+    await coordinator.applyGuidedSettings([{ key: 'budget.dayAmount', value: 12 }, { key: 'statusBar.showBudget', value: false }], update);
+    expect(update).toHaveBeenCalledTimes(2); expect(refresh).not.toHaveBeenCalled(); expect(reaggregate).toHaveBeenCalledOnce();
+    await coordinator.applyGuidedSettings([{ key: 'logRoots', value: ['new'] }, { key: 'sources.include', value: ['cli'] }], update);
+    expect(refresh).toHaveBeenCalledOnce(); expect(reaggregate).toHaveBeenCalledOnce();
+  });
+
+  it('suppresses guided configuration events delivered after update promises settle', async () => {
+    const refresh = vi.fn(() => Promise.resolve()); const reaggregate = vi.fn(() => Promise.resolve());
+    const coordinator = new ConfigurationRefreshController(refresh, reaggregate); const delayed: Array<() => Promise<void>> = [];
+    await coordinator.applyGuidedSettings([{ key: 'logRoots', value: ['new'] }], (key) => {
+      delayed.push(() => coordinator.handleChange(eventFor(`codexCost.${key}`))); return Promise.resolve();
+    });
+    expect(refresh).toHaveBeenCalledOnce();
+    await delayed[0]();
+    expect(refresh).toHaveBeenCalledOnce(); expect(reaggregate).not.toHaveBeenCalled();
+  });
+});
+
+function eventFor(changed: string) { return { affectsConfiguration(section: string) { return section === changed || section === 'codexCost'; } }; }

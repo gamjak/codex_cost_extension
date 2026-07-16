@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 import { createAutoRefreshController } from './autoRefreshController';
 import { BudgetNotificationController } from './budgetNotificationController';
 import { readExtensionConfig } from './config';
+import { ConfigurationRefreshController } from './configurationRefreshController';
 import { SessionRepository } from './data/sessionRepository';
 import { createPeriodBoundaryController } from './periodBoundaryController';
 import { CostCenter } from './view/costCenter';
@@ -13,7 +14,6 @@ import { CodexCostTreeProvider } from './view/costTreeProvider';
 export function activate(context: vscode.ExtensionContext): void {
   const provider = new CodexCostTreeProvider(context);
   const initialConfiguration = readExtensionConfig();
-  let applyingGuidedSettings = false;
   const budgetNotifications = new BudgetNotificationController(
     (message) => { void vscode.window.showWarningMessage(message, 'Open Budget Settings', 'Refresh').then((action) => { if (action === 'Open Budget Settings') void vscode.commands.executeCommand('codexCost.openSettings'); else if (action === 'Refresh') void refreshAndNotify(); }); },
     (keys) => { void context.globalState.update('codexCost.budgetNotificationKeys', keys); },
@@ -27,14 +27,18 @@ export function activate(context: vscode.ExtensionContext): void {
   const autoRefreshController = createAutoRefreshController(() => refreshAndNotify());
   const periodBoundaryController = createPeriodBoundaryController(() => refreshAndNotify());
   const diagnosticsRepository = new SessionRepository();
+  const configurationRefresh = new ConfigurationRefreshController(
+    refreshAndNotify,
+    async () => {
+      const model = controller.getModel();
+      if (model) costCenter.update(await controller.open());
+    }
+  );
   const controller = new CostCenterController({
     workspaceState: context.workspaceState, globalState: context.globalState,
     getSnapshot: () => provider.getLatestCostData(), refresh: refreshAndNotify, readConfiguration: readExtensionConfig,
-    updateConfiguration: async (key, value) => {
-      applyingGuidedSettings = true;
-      try { await vscode.workspace.getConfiguration('codexCost').update(key, value, vscode.ConfigurationTarget.Global); }
-      finally { applyingGuidedSettings = false; }
-    },
+    applySettingsBatch: (updates) => configurationRefresh.applyGuidedSettings(updates, (key, value) =>
+      Promise.resolve(vscode.workspace.getConfiguration('codexCost').update(key, value, vscode.ConfigurationTarget.Global))),
     loadRoots: (roots) => diagnosticsRepository.load(roots),
     executeCommand: (command, ...args) => vscode.commands.executeCommand(command, ...args),
     showInformationMessage: (message) => vscode.window.showInformationMessage(message),
@@ -75,10 +79,8 @@ export function activate(context: vscode.ExtensionContext): void {
 
   provider.setCostCenterUpdater(() => { const model = controller.getModel(); if (model) void controller.open().then((updated) => costCenter.update(updated)).catch((error) => controller.reportError(error)); });
   context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(async (event) => {
-    if (event.affectsConfiguration('codexCost')) {
-      autoRefreshController.updateIntervalSeconds(readExtensionConfig().autoRefreshSeconds);
-      if (!applyingGuidedSettings) await refreshAndNotify();
-    }
+    if (event.affectsConfiguration('codexCost.autoRefreshSeconds')) autoRefreshController.updateIntervalSeconds(readExtensionConfig().autoRefreshSeconds);
+    await configurationRefresh.handleChange(event);
   }));
   context.subscriptions.push(vscode.workspace.onDidChangeWorkspaceFolders(refreshAndNotify));
   autoRefreshController.updateIntervalSeconds(initialConfiguration.autoRefreshSeconds);
