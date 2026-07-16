@@ -19,3 +19,12 @@ it('maps daily comparison buckets by local calendar day across DST', () => {
   };
   expect(buildCostCenterReport(input).chart.map((point) => point.comparisonCost)).toEqual([0.001, 0.001, 0.001, 0.001]);
 });
+
+it('keeps a seven-day fall-DST custom range on the weekly budget', () => {
+  const input: BuildCostCenterReportInput = {
+    sessions: [], filesCount: 0, repositoryWarnings: [], workspaceRoots: ['C:\\repo\\one'], pricingByModel: {}, customPricingModels: new Set(),
+    filters: { scope: 'all', range: { kind: 'custom', startDate: '23.10.2026', endDate: '29.10.2026', compare: false }, section: 'overview' },
+    budgetSettings: { dayAmount: 1, weekAmount: 7, monthAmount: 30, warningPercent: 80 }, pinnedProjects: new Set(), excludedProjects: new Set(), now: new Date('2026-10-29T12:00:00.000Z')
+  };
+  expect(buildCostCenterReport(input).budget.period).toBe('week');
+});

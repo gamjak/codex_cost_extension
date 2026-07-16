@@ -107,14 +107,14 @@ describe('buildCostCenterReport', () => {
     expect(report.drivers.model?.comparisonPercent).toBeTypeOf('number');
   });
 
-  it('applies a selected chart point to the matching comparison point', () => {
+  it('applies an exact hourly chart point to the matching comparison hour', () => {
     const report = buildReport({
       filters: {
         scope: 'all', range: { kind: 'today', compare: true }, section: 'overview',
-        pointStart: '2026-07-16T00:00:00.000Z', pointEndExclusive: '2026-07-17T00:00:00.000Z'
+        pointStart: '2026-07-16T10:00:00.000Z', pointEndExclusive: '2026-07-16T11:00:00.000Z'
       }, now: new Date('2026-07-16T12:00:00.000Z')
     });
-    expect(report.summary.cost.value).toBeGreaterThan(0);
+    expect(report.summary.totalTokens).toBe(1_500);
     expect(report.summary.cost.comparisonPercent).toBeTypeOf('number');
   });
 

@@ -125,8 +125,16 @@ function modelRows(entries: readonly FactDelta[], total: number | undefined, inp
   return Array.from(groups.entries()).map(([model, group]) => { const value = aggregate(group); const pricingState: CostCenterModelRow['pricingState'] = !resolveModelPricing(model === 'unknown' ? undefined : model, input.pricingByModel) ? 'missing' : input.customPricingModels.has(model) ? 'custom' : 'bundled'; return { model, estimatedCost: value.cost, tokens: value.tokens, sessionCount: value.sessions.size, projectCount: value.projects.size, averageCostPerSession: value.cost !== undefined && value.sessions.size ? value.cost / value.sessions.size : undefined, sharePercent: total && value.cost !== undefined ? value.cost / total * 100 : undefined, pricingState, partial: value.partial }; }).sort((left, right) => (right.estimatedCost ?? -1) - (left.estimatedCost ?? -1) || left.model.localeCompare(right.model));
 }
 
+function countLocalCalendarDays(interval: DateInterval): number {
+  let days = 0;
+  for (const cursor = new Date(interval.start); cursor < interval.endExclusive; cursor.setDate(cursor.getDate() + 1)) {
+    days += 1;
+  }
+  return days;
+}
+
 function budget(input: BuildCostCenterReportInput, summary: Aggregate, range: ReturnType<typeof resolveCostCenterRange>): CostCenterReport['budget'] {
-  const days = Math.ceil((range.current.endExclusive.getTime() - range.current.start.getTime()) / 86_400_000);
+  const days = countLocalCalendarDays(range.current);
   const period: BudgetPeriod = input.filters.range.kind === 'today' ? 'day' : input.filters.range.kind === '7d' ? 'week' : days > 7 ? 'month' : 'week';
   const amount = period === 'day' ? input.budgetSettings.dayAmount : period === 'week' ? input.budgetSettings.weekAmount : input.budgetSettings.monthAmount;
   const configured = amount > 0 ? amount : undefined; const spent = summary.cost;
