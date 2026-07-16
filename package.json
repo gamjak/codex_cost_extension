@@ -2,7 +2,7 @@
   "name": "codex-cost-extension",
   "displayName": "%extension.displayName%",
   "description": "%extension.description%",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "packageManager": "pnpm@11.7.0",
   "publisher": "gamjak",
   "license": "MIT",

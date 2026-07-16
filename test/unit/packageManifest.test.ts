@@ -21,7 +21,7 @@ describe('VS Code manifest', () => {
     ) as Manifest;
 
     expect(manifest.publisher).toBe('gamjak');
-    expect(manifest.version).toBe('0.4.0');
+    expect(manifest.version).toBe('0.5.0');
   });
 
   it('keeps contributed commands, activation events, and safe defaults aligned', () => {

@@ -2,7 +2,7 @@
 
 All notable changes to Codex Cost are documented here.
 
-## Unreleased
+## 0.5.0 - 2026-07-16
 
 - Unify workspace and all-session analysis in the Cost Center, available from the status bar, sidebar, and Command Palette.
 - Add Today, 7-day, 30-day, and custom ranges with optional comparison to the preceding equivalent period.
