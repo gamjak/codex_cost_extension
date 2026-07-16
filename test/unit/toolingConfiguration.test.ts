@@ -35,11 +35,13 @@ describe('tooling configuration', () => {
   it('separates runtime compilation from type checking and tests', () => {
     const scripts = readManifest().scripts;
 
-    expect(scripts.compile).toBe('tsc -p tsconfig.build.json');
+    expect(scripts.compile).toBe('node scripts/clean-build.mjs && tsc -p tsconfig.build.json');
     expect(scripts.check).toBe('tsc -p tsconfig.json --noEmit && eslint . && vitest run');
     expect(scripts.test).toBe('vitest run');
     expect(scripts.watch).toBe('tsc -watch -p tsconfig.build.json');
-    expect(scripts['vscode:prepublish']).toBe('tsc -p tsconfig.build.json && eslint . && vitest run');
+    expect(scripts['vscode:prepublish']).toBe(
+      'node scripts/clean-build.mjs && tsc -p tsconfig.build.json && eslint . && vitest run'
+    );
 
     expect(vitestConfig.test?.exclude).toEqual([
       'out/**',

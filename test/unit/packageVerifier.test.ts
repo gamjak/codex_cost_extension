@@ -122,6 +122,18 @@ describe('package verifier', () => {
     }
   });
 
+  it('rejects deleted legacy dashboard runtime output', () => {
+    for (const legacyPath of [
+      'extension/out/src/view/costDashboard.js',
+      'extension/out/src/view/dashboardPresentation.js'
+    ]) {
+      const result = verifyPackage([...requiredPackagePaths, legacyPath]);
+
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).toContain(legacyPath);
+    }
+  });
+
   it('rejects repository metadata in the extension package', () => {
     for (const metadataPath of ['extension/.github/ISSUE_TEMPLATE/bug-report.yml', 'extension/.vscode/tasks.json']) {
       const result = verifyPackage([...requiredPackagePaths, metadataPath]);

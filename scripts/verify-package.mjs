@@ -30,6 +30,11 @@ const forbiddenPrefixes = [
   'extension/.superpowers/'
 ];
 
+const forbiddenPaths = new Set([
+  'extension/out/src/view/costDashboard.js',
+  'extension/out/src/view/dashboardPresentation.js'
+]);
+
 function fail(message) {
   console.error(`Package verification failed: ${message}`);
   process.exitCode = 1;
@@ -48,8 +53,9 @@ function verify(paths) {
     return;
   }
 
-  const forbiddenPath = paths.find((packagePath) =>
-    forbiddenPrefixes.some((prefix) => packagePath.startsWith(prefix))
+  const forbiddenPath = paths.find(
+    (packagePath) =>
+      forbiddenPaths.has(packagePath) || forbiddenPrefixes.some((prefix) => packagePath.startsWith(prefix))
   );
   if (forbiddenPath) {
     fail(`forbidden package path: ${forbiddenPath}. Update .vscodeignore or the build configuration.`);
