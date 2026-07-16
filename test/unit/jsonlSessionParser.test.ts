@@ -292,6 +292,45 @@ describe('parseSessionFile', () => {
     }
   });
 
+  it('streams a large newline-rich append without concatenating the complete payload', async () => {
+    const filePath = await temporaryJsonl([
+      { timestamp: '2026-07-16T12:00:00.000Z', type: 'session_meta', payload: { id: 'session-1' } }
+    ]);
+    const initial = await parseSessionToCheckpoint(filePath);
+    const lines: string[] = [];
+    let index = 0;
+    let payloadBytes = 0;
+    while (payloadBytes < 2 * 1024 * 1024) {
+      const line = JSON.stringify(tokenRecord(new Date(Date.UTC(2026, 6, 16, 12, 1, index++)).toISOString(), index + 100));
+      lines.push(line);
+      payloadBytes += Buffer.byteLength(line) + 1;
+    }
+    const payload = Buffer.from(`${lines.join('\n')}\n`);
+    await fs.appendFile(filePath, payload);
+    const concatenate = Buffer.concat.bind(Buffer);
+    let maximumConcatBytes = 0;
+    const concatSpy = vi.spyOn(Buffer, 'concat').mockImplementation((buffers, totalLength) => {
+      maximumConcatBytes = Math.max(
+        maximumConcatBytes,
+        totalLength ?? buffers.reduce((total, buffer) => total + buffer.length, 0)
+      );
+      return concatenate(buffers, totalLength);
+    });
+    let incremental: Awaited<ReturnType<typeof appendSessionToCheckpoint>>;
+
+    try {
+      incremental = await appendSessionToCheckpoint(filePath, initial.checkpoint);
+    } finally {
+      concatSpy.mockRestore();
+    }
+    const complete = await parseSessionToCheckpoint(filePath);
+
+    expect(incremental.result).toEqual(complete.result);
+    expect(incremental.checkpoint.pendingBytes).toHaveLength(0);
+    expect(incremental.result.diagnostics).toEqual(complete.result.diagnostics);
+    expect(maximumConcatBytes).toBeLessThan(64 * 1024);
+  });
+
   it('accumulates malformed lines and invalid timestamps without double-counting', async () => {
     const filePath = await temporaryJsonl([
       { timestamp: '2026-07-16T12:00:00.000Z', type: 'session_meta', payload: { id: 'session-1' } }

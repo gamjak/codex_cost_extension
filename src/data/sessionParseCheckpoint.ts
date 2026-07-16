@@ -164,28 +164,42 @@ function resultFrom(checkpoint: SessionParseCheckpoint): SessionCheckpointResult
 async function consume(filePath: string, source: SessionParseCheckpoint): Promise<SessionCheckpointResult> {
   const checkpoint = cloneCheckpoint(source);
   const decoder = new TextDecoder('utf-8', { fatal: false });
-  const chunks: Buffer<ArrayBufferLike>[] = [];
+  let lineChunks: Buffer<ArrayBufferLike>[] = checkpoint.pendingBytes.length === 0
+    ? []
+    : [Buffer.from(checkpoint.pendingBytes)];
   const stream = fs.createReadStream(filePath, { start: checkpoint.bytesRead });
+
+  const reduceCompleteLine = (suffix: Buffer<ArrayBufferLike>): void => {
+    if (suffix.length > 0) lineChunks.push(suffix);
+    const line = lineChunks.length === 0
+      ? Buffer.alloc(0)
+      : lineChunks.length === 1
+        ? lineChunks[0]
+        : Buffer.concat(lineChunks);
+    const lineEnd = line.length > 0 && line[line.length - 1] === 0x0d ? line.length - 1 : line.length;
+    reduceSessionLine(checkpoint, decoder.decode(line.subarray(0, lineEnd)));
+    lineChunks = [];
+  };
 
   for await (const value of stream) {
     const chunk = value as Buffer;
     checkpoint.bytesRead += chunk.length;
     checkpoint.trailingGuard = updateTrailingGuard(checkpoint.trailingGuard, chunk);
-    chunks.push(chunk);
+    let lineStart = 0;
+    for (let index = 0; index < chunk.length; index += 1) {
+      if (chunk[index] !== 0x0a) continue;
+      reduceCompleteLine(chunk.subarray(lineStart, index));
+      lineStart = index + 1;
+    }
+    if (lineStart < chunk.length) lineChunks.push(chunk.subarray(lineStart));
   }
 
-  const bytes = chunks.length === 0
-    ? Buffer.from(checkpoint.pendingBytes)
-    : Buffer.concat([Buffer.from(checkpoint.pendingBytes), ...chunks]);
-  let lineStart = 0;
-  for (let index = 0; index < bytes.length; index += 1) {
-    if (bytes[index] !== 0x0a) continue;
-    let lineEnd = index;
-    if (lineEnd > lineStart && bytes[lineEnd - 1] === 0x0d) lineEnd -= 1;
-    reduceSessionLine(checkpoint, decoder.decode(bytes.subarray(lineStart, lineEnd)));
-    lineStart = index + 1;
-  }
-  checkpoint.pendingBytes = Uint8Array.from(bytes.subarray(lineStart));
+  const pending = lineChunks.length === 0
+    ? Buffer.alloc(0)
+    : lineChunks.length === 1
+      ? lineChunks[0]
+      : Buffer.concat(lineChunks);
+  checkpoint.pendingBytes = Uint8Array.from(pending);
   if (checkpoint.pendingBytes.length > 0) {
     const line = decoder.decode(checkpoint.pendingBytes);
     try {
