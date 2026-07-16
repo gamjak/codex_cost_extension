@@ -86,4 +86,13 @@ describe('parseSessionFile', () => {
     expect(result.session?.sessionId).toBe('session-malformed');
     expect(result.diagnostics.malformedLines).toBe(1);
   });
+
+  it('orders valid ISO timestamps with offsets by instant while preserving their original strings', async () => {
+    const fixturePath = path.resolve('test/fixtures/offset-timestamps-session.jsonl');
+
+    const session = await parseSessionFile(fixturePath);
+
+    expect(session?.startedAt).toBe('2026-06-01T09:00:00.000+02:00');
+    expect(session?.updatedAt).toBe('2026-06-01T07:30:00.000Z');
+  });
 });
