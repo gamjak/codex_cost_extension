@@ -22,4 +22,22 @@ describe('buildCostCenterSummaryText', () => {
     expect(text).not.toContain('reveal me');
     expect(text).not.toMatch(/prompt|response/i);
   });
+
+  it.each([
+    ['drive', 'C:\\secret\\repo'],
+    ['UNC', '\\\\server\\share\\repo'],
+    ['extended', '\\\\?\\C:\\secret\\repo'],
+    ['POSIX', '/home/user/secret/repo'],
+    ['mixed', 'C:\\secret/private\\repo']
+  ])('never copies a full %s path from a driver label', (_kind, unsafeLabel) => {
+    const report = {
+      filters: { scope: 'all', range: { kind: '7d', compare: false }, section: 'overview' },
+      rangeLabel: 'Last 7 days', summary: { cost: { value: 1, partial: false }, totalTokens: 1, activeDays: 1, sessionCount: 1 },
+      budget: { period: 'week', state: 'neutral', explanation: 'On track', partial: false }, chart: [],
+      drivers: { project: { key: unsafeLabel, label: unsafeLabel, cost: 1 } }, sessions: [], projects: [], models: [], warnings: []
+    } as unknown as CostCenterReport;
+    const text = buildCostCenterSummaryText(report);
+    expect(text).not.toContain(unsafeLabel);
+    expect(text).toContain('Top project: repo');
+  });
 });

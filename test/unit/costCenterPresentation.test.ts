@@ -238,7 +238,8 @@ describe('buildCostCenterHtml', () => {
   });
 
   it('keeps partial custom date edits local and posts only a complete valid range', () => {
-    const client = runClient();
+    const error = { textContent: '', hidden: true };
+    const client = runClient({ '[data-range-error]': error });
     const range = new client.Select({ control: 'range', action: 'setRange' }); range.value = 'custom';
     const compare = new client.Input({ control: 'compare', action: 'setRange' }, 'checkbox'); compare.checked = true;
     const start = new client.Input({ control: 'start-date', action: 'setRange' }, 'text', '31.02.2026');
@@ -249,9 +250,36 @@ describe('buildCostCenterHtml', () => {
     client.elements['[data-control="end-date"]'] = end;
     client.change(start);
     expect(client.posts).toEqual([]);
+    expect(error.hidden).toBe(true);
+    error.textContent = 'Enter valid dates in DD.MM.YYYY format with the end on or after the start.';
+    error.hidden = false;
     start.value = '28.02.2026'; end.value = '01.03.2026';
     client.change(end);
     expect(client.posts).toEqual([{ type: 'setRange', value: { kind: 'custom', startDate: '28.02.2026', endDate: '01.03.2026', compare: true } }]);
+    expect(error.hidden).toBe(true);
+    expect(error.textContent).toBe('');
+  });
+
+  it.each([
+    ['31.02.2026', '01.03.2026'],
+    ['02.03.2026', '01.03.2026']
+  ])('shows an accessible local error and never posts an invalid complete custom range (%s to %s)', (startValue, endValue) => {
+    const error = { textContent: '', hidden: true };
+    const client = runClient({ '[data-range-error]': error });
+    const range = new client.Select({ control: 'range', action: 'setRange' }); range.value = 'custom';
+    const compare = new client.Input({ control: 'compare', action: 'setRange' }, 'checkbox');
+    const start = new client.Input({ control: 'start-date', action: 'setRange' }, 'text', startValue);
+    const end = new client.Input({ control: 'end-date', action: 'setRange' }, 'text', endValue);
+    client.elements['[data-control="range"]'] = range;
+    client.elements['[data-control="compare"]'] = compare;
+    client.elements['[data-control="start-date"]'] = start;
+    client.elements['[data-control="end-date"]'] = end;
+    client.change(end);
+    expect(client.posts).toEqual([]);
+    expect(error).toEqual({
+      textContent: 'Enter valid dates in DD.MM.YYYY format with the end on or after the start.',
+      hidden: false
+    });
   });
 
   it('rejects unknown fields and serializes allowlisted field values by type', () => {
@@ -299,7 +327,7 @@ describe('buildCostCenterHtml', () => {
   });
 });
 
-function runClient(initialElements: Record<string, { textContent?: string }> = {}) {
+function runClient(initialElements: Record<string, { textContent?: string; hidden?: boolean }> = {}) {
   const posts: unknown[] = [];
   const listeners: Record<string, (event: { target: ClientElement; key?: string; preventDefault(): void }) => void> = {};
   class ClientElement {
@@ -315,10 +343,10 @@ function runClient(initialElements: Record<string, { textContent?: string }> = {
   class ClientInput extends ClientElement { constructor(dataset = {}, type = 'text', value = '') { super(dataset); this.type = type; this.value = value; } }
   class ClientSelect extends ClientElement {}
   class ClientTextArea extends ClientElement { constructor(dataset = {}, value = '') { super(dataset); this.value = value; } }
-  const elements: Record<string, ClientElement | { textContent?: string }> = { ...initialElements };
+  const elements: Record<string, ClientElement | { textContent?: string; hidden?: boolean }> = { ...initialElements };
   const document = {
     addEventListener(type: string, listener: typeof listeners[string]) { listeners[type] = listener; },
-    querySelector(selector: string): ClientElement | { textContent?: string } | null { return elements[selector] ?? null; }
+    querySelector(selector: string): ClientElement | { textContent?: string; hidden?: boolean } | null { return elements[selector] ?? null; }
   };
   vm.runInNewContext(buildCostCenterClientScript(), {
     acquireVsCodeApi: () => ({ postMessage(message: unknown) { posts.push(message); } }),

@@ -5,7 +5,7 @@ const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' 
 
 function summaryLabel(value: string): string {
   const parts = value.split(/[\\/]/).filter(Boolean);
-  return /^[a-z]:[\\/]/i.test(value) || value.startsWith('/') ? (parts.at(-1) ?? 'Local item') : value;
+  return value.includes('\\') || value.includes('/') ? (parts.at(-1) ?? 'Local item') : value;
 }
 
 export function buildCostCenterSummaryText(report: CostCenterReport): string {

@@ -17,6 +17,12 @@ export function buildCostCenterClientScript(): string {
     const date = new Date(Number(match[3]), Number(match[2]) - 1, Number(match[1]));
     return date.getFullYear() === Number(match[3]) && date.getMonth() === Number(match[2]) - 1 && date.getDate() === Number(match[1]) ? date : undefined;
   };
+  const showRangeError = (message) => {
+    const error = document.querySelector('[data-range-error]');
+    if (!error) return;
+    error.textContent = message;
+    error.hidden = !message;
+  };
   const postAction = (target) => {
     const type = target.dataset.action;
     if (!type) return;
@@ -25,9 +31,15 @@ export function buildCostCenterClientScript(): string {
       const value = rangeValue();
       if (!value) return;
       if (value.kind === 'custom') {
+        const complete = /^(\\d{2})\\.(\\d{2})\\.(\\d{4})$/;
+        if (!complete.test(value.startDate) || !complete.test(value.endDate)) return;
         const start = validLocalDate(value.startDate); const end = validLocalDate(value.endDate);
-        if (!start || !end || end < start) return;
+        if (!start || !end || end < start) {
+          showRangeError('Enter valid dates in DD.MM.YYYY format with the end on or after the start.');
+          return;
+        }
       }
+      showRangeError('');
       return post({ type: 'setRange', value });
     }
     if (type === 'setSection') return post({ type: 'setSection', value: target.dataset.value });

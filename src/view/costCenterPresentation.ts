@@ -56,7 +56,7 @@ function panels(model: CostCenterViewModel): string {
     ['models', buildModelsTable(model.report, model.uiState)]
   ];
   const analysisPanels = sections.map(([section, content]) => `<section id="panel-${section}" role="tabpanel" aria-labelledby="tab-${section}"${section === selected ? '' : ' hidden'}>${content}</section>`).join('');
-  const rangeError = model.rangeError ? `<p class="notice" role="alert" id="cost-center-range-error">${escapeHtml(model.rangeError)}</p>` : '';
+  const rangeError = `<p class="notice" role="alert" id="cost-center-range-error" data-range-error${model.rangeError ? '' : ' hidden'}>${escapeHtml(model.rangeError ?? '')}</p>`;
   return rangeError + analysisPanels + (model.settings?.open ? buildCostCenterSettings(model.settings, escapeHtml) : '');
 }
 

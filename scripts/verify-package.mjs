@@ -12,6 +12,7 @@ const requiredPaths = [
   'extension/out/src/view/costCenterOverviewPresentation.js',
   'extension/out/src/view/costCenterPresentation.js',
   'extension/out/src/view/costCenterSettingsPresentation.js',
+  'extension/out/src/view/costCenterSummary.js',
   'extension/out/src/view/costCenterTablePresentation.js',
   'extension/package.json',
   'extension/readme.md',

@@ -44,3 +44,21 @@ The bundled runtime did not expose `npm.cmd`, while `vsce` invokes `npm run vsco
 - Comparison metadata is optional to preserve compatibility with session timelines and non-comparison charts.
 
 No known remaining concerns in the reviewed scope.
+
+## Follow-up review wave
+
+Three final review findings were handled in a separate TDD cycle:
+
+- Complete but impossible or inverted custom dates now update the persistent `role="alert"` element directly in the browser while posting no `setRange` action. Partial edits remain local and quiet; the next valid complete range clears the error and posts once.
+- Copied driver labels now strip every directory prefix whenever either path separator is present. Tests cover drive, UNC, extended Windows, POSIX, and mixed-separator paths.
+- `extension/out/src/view/costCenterSummary.js` is now a mandatory package-verifier path with an explicit missing-module regression.
+
+RED evidence: the focused suite reported two browser-alert failures, UNC and extended-path disclosure failures, and acceptance of a package missing `costCenterSummary.js`.
+
+Final follow-up verification:
+
+- Focused tests: PASS; complete suite executed with 31 files and 172 tests.
+- `pnpm run check`: PASS; TypeScript, ESLint, 31 files, 172 tests.
+- `pnpm run compile`: PASS.
+- `pnpm run package --out codex-cost-extension.vsix`: PASS; prepublish reran all 172 tests.
+- `pnpm run verify-package`: PASS; 46 package paths verified, including the summary runtime.

@@ -20,6 +20,7 @@ const requiredPackagePaths = [
   'extension/out/src/view/costCenterOverviewPresentation.js',
   'extension/out/src/view/costCenterPresentation.js',
   'extension/out/src/view/costCenterSettingsPresentation.js',
+  'extension/out/src/view/costCenterSummary.js',
   'extension/out/src/view/costCenterTablePresentation.js',
   'extension/package.json',
   'extension/readme.md',
@@ -105,6 +106,13 @@ describe('package verifier', () => {
     const requiredRuntimePath = 'extension/out/src/view/costCenterController.js';
     const result = verifyPackage(requiredPackagePaths.filter((entry) => entry !== requiredRuntimePath));
 
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain(requiredRuntimePath);
+  });
+
+  it('rejects a package missing the copied-summary runtime module', () => {
+    const requiredRuntimePath = 'extension/out/src/view/costCenterSummary.js';
+    const result = verifyPackage(requiredPackagePaths.filter((entry) => entry !== requiredRuntimePath));
     expect(result.status).not.toBe(0);
     expect(result.stderr).toContain(requiredRuntimePath);
   });
