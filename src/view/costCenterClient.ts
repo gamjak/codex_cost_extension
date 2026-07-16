@@ -18,6 +18,7 @@ export function buildCostCenterClientScript(): string {
     if (type === 'setRange') return post({ type: 'setRange', value: rangeValue() });
     if (type === 'setSection') return post({ type: 'setSection', value: target.dataset.value });
     if (type === 'setSettingsGroup') return post({ type: 'setSettingsGroup', value: target.dataset.value });
+    if (type === 'resetSettingsGroup') return post({ type: 'resetSettingsGroup', value: target.dataset.value });
     if (type === 'clearFilter') return post({ type: 'clearFilter', value: target.dataset.value });
     if (type === 'filterChartPoint') return post({ type: 'filterChartPoint', pointStart: target.dataset.start, pointEndExclusive: target.dataset.endExclusive });
     if (type === 'setSort') return post({ type: 'setSort', key: target.dataset.key, value: target.dataset.value });

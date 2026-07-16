@@ -1,3 +1,5 @@
+import vm from 'node:vm';
+
 import { describe, expect, it } from 'vitest';
 
 import { buildCostCenterHtml, type CostCenterViewModel } from '../../src/view/costCenterPresentation';
@@ -200,7 +202,90 @@ describe('buildCostCenterHtml', () => {
     expect(script).toContain("post({ type: 'updateSettingField', key, value })");
     expect(script).not.toContain("post({ type: 'updateSettingField', key: target.dataset.key, value })");
   });
+
+  it('posts the selected group when resetting guided settings', () => {
+    const client = runClient();
+    client.click(new client.Element({ action: 'resetSettingsGroup', value: 'notifications' }));
+
+    expect(client.posts).toEqual([{ type: 'resetSettingsGroup', value: 'notifications' }]);
+  });
+
+  it('rejects unknown fields and serializes allowlisted field values by type', () => {
+    const client = runClient();
+    client.change(new client.Input({ action: 'updateSettingField', key: 'pricing.models' }, 'text', 'secret'));
+    client.change(new client.Input({ action: 'updateSettingField', key: 'budget.dayAmount', valueType: 'number' }, 'number', '12.5'));
+    client.change(new client.TextArea({ action: 'updateSettingField', key: 'dataSources.logRoots', valueType: 'string-array' }, ' one\n\n two '));
+    const checkbox = new client.Input({ action: 'updateSettingField', key: 'notifications.enabled' }, 'checkbox', '');
+    checkbox.checked = true;
+    client.change(checkbox);
+
+    expect(client.posts).toEqual([
+      { type: 'updateSettingField', key: 'budget.dayAmount', value: 12.5 },
+      { type: 'updateSettingField', key: 'dataSources.logRoots', value: ['one', 'two'] },
+      { type: 'updateSettingField', key: 'notifications.enabled', value: true }
+    ]);
+  });
+
+  it('updates budget preview locally on input and posts only on change', () => {
+    const preview = { textContent: '' };
+    const client = runClient({ '[data-budget-preview]': preview });
+    const input = new client.Input({ action: 'updateSettingField', key: 'budget.dayAmount', valueType: 'number' }, 'number', '7');
+    client.elements['[data-key="budget.dayAmount"]'] = input;
+
+    client.input(input);
+    expect(preview.textContent).toContain('Daily budget preview: $7.00');
+    expect(client.posts).toEqual([]);
+
+    client.change(input);
+    expect(client.posts).toEqual([{ type: 'updateSettingField', key: 'budget.dayAmount', value: 7 }]);
+  });
+
+  it('escapes malicious settings values, diagnostics, and errors', () => {
+    const model = viewModel();
+    const malicious = '<img src=x onerror=alert(1)>';
+    model.settings = settingsView();
+    model.settings.draft.dataSources.logRoots = [malicious];
+    model.settings.errors['budget.dayAmount'] = malicious;
+    model.settings.diagnostics[0].root = malicious;
+    model.settings.diagnostics[0].warnings = [malicious];
+    const html = buildCostCenterHtml(model, 'safe-nonce');
+
+    expect(html).not.toContain(malicious);
+    expect(html.match(/&lt;img src=x onerror=alert\(1\)&gt;/g)?.length).toBeGreaterThanOrEqual(4);
+  });
 });
+
+function runClient(initialElements: Record<string, { textContent?: string }> = {}) {
+  const posts: unknown[] = [];
+  const listeners: Record<string, (event: { target: ClientElement; key?: string; preventDefault(): void }) => void> = {};
+  class ClientElement {
+    dataset: Record<string, string>;
+    value = '';
+    checked = false;
+    type = '';
+    constructor(dataset: Record<string, string> = {}) { this.dataset = dataset; }
+    closest(selector: string) { return selector === '[data-action]' && this.dataset.action ? this : null; }
+    matches(selector: string) { return selector === 'select, input, textarea' && (this instanceof ClientInput || this instanceof ClientSelect || this instanceof ClientTextArea); }
+    focus() {}
+  }
+  class ClientInput extends ClientElement { constructor(dataset = {}, type = 'text', value = '') { super(dataset); this.type = type; this.value = value; } }
+  class ClientSelect extends ClientElement {}
+  class ClientTextArea extends ClientElement { constructor(dataset = {}, value = '') { super(dataset); this.value = value; } }
+  const elements: Record<string, ClientElement | { textContent?: string }> = { ...initialElements };
+  const document = {
+    addEventListener(type: string, listener: typeof listeners[string]) { listeners[type] = listener; },
+    querySelector(selector: string): ClientElement | { textContent?: string } | null { return elements[selector] ?? null; }
+  };
+  vm.runInNewContext(buildCostCenterClientScript(), {
+    acquireVsCodeApi: () => ({ postMessage(message: unknown) { posts.push(message); } }),
+    document,
+    HTMLInputElement: ClientInput,
+    HTMLSelectElement: ClientSelect,
+    HTMLTextAreaElement: ClientTextArea
+  });
+  const fire = (type: string, target: ClientElement) => listeners[type]({ target, preventDefault() {} });
+  return { posts, elements, Element: ClientElement, Input: ClientInput, Select: ClientSelect, TextArea: ClientTextArea, click: (target: ClientElement) => fire('click', target), change: (target: ClientElement) => fire('change', target), input: (target: ClientElement) => fire('input', target) };
+}
 
 function settingsView(): NonNullable<CostCenterViewModel['settings']> {
   return {
