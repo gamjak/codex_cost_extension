@@ -1,8 +1,23 @@
 import * as fs from 'node:fs/promises';
+import type * as nodeFs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
 import { describe, expect, it, vi } from 'vitest';
+
+const readStreamObserver = vi.hoisted(() => ({ starts: [] as Array<number | undefined> }));
+
+vi.mock('node:fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof nodeFs>();
+  return {
+    ...actual,
+    createReadStream: (...args: Parameters<typeof actual.createReadStream>) => {
+      const options = args[1];
+      readStreamObserver.starts.push(typeof options === 'object' && options !== null ? options.start : undefined);
+      return actual.createReadStream(args[0], options);
+    }
+  };
+});
 
 import { parseSessionFile, parseSessionFileWithDiagnostics } from '../../src/data/jsonlSessionParser';
 import {
@@ -235,6 +250,46 @@ describe('parseSessionFile', () => {
     const completed = await appendSessionToCheckpoint(filePath, partial.checkpoint);
     expect(completed.result.session?.cwd).toBe('C:\\répo');
     expect(completed.result.session?.model).toBe('mödél');
+  });
+
+  it('opens an incremental stream at the checkpoint byte offset', async () => {
+    const filePath = await temporaryJsonl([
+      { timestamp: '2026-07-16T12:00:00.000Z', type: 'session_meta', payload: { id: 'session-1' } }
+    ]);
+    const initial = await parseSessionToCheckpoint(filePath);
+    await fs.appendFile(filePath, `${JSON.stringify(tokenRecord('2026-07-16T12:01:00.000Z', 100))}\n`);
+    readStreamObserver.starts.length = 0;
+
+    await appendSessionToCheckpoint(filePath, initial.checkpoint);
+
+    expect(readStreamObserver.starts).toEqual([initial.checkpoint.bytesRead]);
+  });
+
+  it('accumulates a large newline-free append with linear byte allocation', async () => {
+    const filePath = await temporaryJsonl([
+      { timestamp: '2026-07-16T12:00:00.000Z', type: 'session_meta', payload: { id: 'session-1' } }
+    ]);
+    const initial = await parseSessionToCheckpoint(filePath);
+    const partial = Buffer.from(`{"payload":"${'x'.repeat(256 * 1024)}`);
+    await fs.appendFile(filePath, partial);
+    const NativeUint8Array = Uint8Array;
+    let allocatedBytes = 0;
+    const InstrumentedUint8Array = new Proxy(NativeUint8Array, {
+      construct(target, args) {
+        if (typeof args[0] === 'number') allocatedBytes += args[0];
+        return Reflect.construct(target, args) as Uint8Array;
+      }
+    });
+    vi.stubGlobal('Uint8Array', InstrumentedUint8Array);
+
+    try {
+      const appended = await appendSessionToCheckpoint(filePath, initial.checkpoint);
+      expect(Buffer.from(appended.checkpoint.pendingBytes)).toEqual(partial);
+      expect(appended.result.diagnostics.malformedLines).toBe(0);
+      expect(allocatedBytes).toBeLessThan(partial.length * 2);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('accumulates malformed lines and invalid timestamps without double-counting', async () => {

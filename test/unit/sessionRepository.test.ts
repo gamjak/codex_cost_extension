@@ -121,6 +121,36 @@ describe('SessionRepository', () => {
     expect(events).toEqual(['full']);
   });
 
+  it('fully parses a larger in-place replacement that preserves native identity', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'codex-cost-repository-'));
+    tempDirectories.push(root);
+    const sessionPath = path.join(root, 'session.jsonl');
+    const original = `${sessionLines(10)}\n`;
+    const replacement = `${sessionLines(300).replace('cached-session', 'replacement-session')}\n${tokenLine(400)}\n`;
+    await fs.writeFile(sessionPath, original);
+    const identityBefore = await fs.stat(sessionPath);
+    const events: string[] = [];
+    const repository = new SessionRepository({ onParse: (kind) => events.push(kind) });
+    await repository.load([root]);
+    const handle = await fs.open(sessionPath, 'r+');
+    try {
+      await handle.truncate(0);
+      await handle.writeFile(replacement);
+    } finally {
+      await handle.close();
+    }
+    const identityAfter = await fs.stat(sessionPath);
+    expect(identityAfter.dev).toBe(identityBefore.dev);
+    expect(identityAfter.ino).toBe(identityBefore.ino);
+    events.length = 0;
+
+    const refreshed = await repository.load([root]);
+    const fresh = await new SessionRepository().load([root]);
+
+    expect(refreshed).toEqual(fresh);
+    expect(events).toEqual(['full']);
+  });
+
   it('fully parses growth when native identity metadata becomes partial', async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), 'codex-cost-repository-'));
     tempDirectories.push(root);

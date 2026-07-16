@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import type { ParsedSession } from '../domain/types';
 import {
   appendSessionToCheckpoint,
+  checkpointPrefixMatches,
   parseSessionToCheckpoint,
   type SessionParseCheckpoint,
   type SessionParseDiagnostics
@@ -123,7 +124,8 @@ export class SessionRepository {
           return cached;
         }
 
-        const kind = cached && safeAppend(cached, descriptor) ? 'append' : 'full';
+        const kind = cached && safeAppend(cached, descriptor) &&
+          await checkpointPrefixMatches(filePath, cached.checkpoint) ? 'append' : 'full';
         this.onParse?.(kind, filePath);
         const parsed = kind === 'append'
           ? await appendSessionToCheckpoint(filePath, cached!.checkpoint)

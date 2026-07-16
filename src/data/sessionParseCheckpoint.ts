@@ -1,4 +1,5 @@
 import * as fs from 'node:fs';
+import type { FileHandle } from 'node:fs/promises';
 import * as path from 'node:path';
 import * as readline from 'node:readline';
 
@@ -16,6 +17,7 @@ export interface SessionParseCheckpoint {
   filePath: string;
   bytesRead: number;
   pendingBytes: Uint8Array;
+  trailingGuard: Uint8Array;
   session: ParsedSession;
   diagnostics: SessionParseDiagnostics;
 }
@@ -64,6 +66,7 @@ function createCheckpoint(filePath: string): SessionParseCheckpoint {
     filePath,
     bytesRead: 0,
     pendingBytes: new Uint8Array(),
+    trailingGuard: new Uint8Array(),
     session: { sessionId: fallbackSessionId(filePath), filePath, updatedAt: '', usageHistory: [] },
     diagnostics: { malformedLines: 0, invalidTimestamps: 0, invalidTokenUsageRecords: 0 }
   };
@@ -73,6 +76,7 @@ function cloneCheckpoint(value: SessionParseCheckpoint): SessionParseCheckpoint 
   return {
     ...value,
     pendingBytes: Uint8Array.from(value.pendingBytes),
+    trailingGuard: Uint8Array.from(value.trailingGuard),
     diagnostics: { ...value.diagnostics },
     session: {
       ...value.session,
@@ -134,11 +138,17 @@ export function reduceSessionLine(checkpoint: SessionParseCheckpoint, line: stri
   }
 }
 
-function concatenate(left: Uint8Array, right: Uint8Array): Uint8Array {
-  const combined = new Uint8Array(left.length + right.length);
-  combined.set(left);
-  combined.set(right, left.length);
-  return combined;
+const trailingGuardSize = 4_096;
+
+function updateTrailingGuard(previous: Uint8Array, chunk: Uint8Array): Uint8Array {
+  if (chunk.length >= trailingGuardSize) {
+    return Uint8Array.from(chunk.subarray(chunk.length - trailingGuardSize));
+  }
+  const retained = Math.min(previous.length, trailingGuardSize - chunk.length);
+  const guard = new Uint8Array(retained + chunk.length);
+  guard.set(previous.subarray(previous.length - retained));
+  guard.set(chunk, retained);
+  return guard;
 }
 
 function resultFrom(checkpoint: SessionParseCheckpoint): SessionCheckpointResult {
@@ -154,27 +164,30 @@ function resultFrom(checkpoint: SessionParseCheckpoint): SessionCheckpointResult
 async function consume(filePath: string, source: SessionParseCheckpoint): Promise<SessionCheckpointResult> {
   const checkpoint = cloneCheckpoint(source);
   const decoder = new TextDecoder('utf-8', { fatal: false });
-  let pending = checkpoint.pendingBytes;
+  const chunks: Buffer<ArrayBufferLike>[] = [];
   const stream = fs.createReadStream(filePath, { start: checkpoint.bytesRead });
 
   for await (const value of stream) {
     const chunk = value as Buffer;
     checkpoint.bytesRead += chunk.length;
-    const bytes = concatenate(pending, chunk);
-    let lineStart = 0;
-    for (let index = 0; index < bytes.length; index += 1) {
-      if (bytes[index] !== 0x0a) continue;
-      let lineEnd = index;
-      if (lineEnd > lineStart && bytes[lineEnd - 1] === 0x0d) lineEnd -= 1;
-      reduceSessionLine(checkpoint, decoder.decode(bytes.subarray(lineStart, lineEnd)));
-      lineStart = index + 1;
-    }
-    pending = bytes.slice(lineStart);
+    checkpoint.trailingGuard = updateTrailingGuard(checkpoint.trailingGuard, chunk);
+    chunks.push(chunk);
   }
 
-  checkpoint.pendingBytes = pending;
-  if (pending.length > 0) {
-    const line = decoder.decode(pending);
+  const bytes = chunks.length === 0
+    ? Buffer.from(checkpoint.pendingBytes)
+    : Buffer.concat([Buffer.from(checkpoint.pendingBytes), ...chunks]);
+  let lineStart = 0;
+  for (let index = 0; index < bytes.length; index += 1) {
+    if (bytes[index] !== 0x0a) continue;
+    let lineEnd = index;
+    if (lineEnd > lineStart && bytes[lineEnd - 1] === 0x0d) lineEnd -= 1;
+    reduceSessionLine(checkpoint, decoder.decode(bytes.subarray(lineStart, lineEnd)));
+    lineStart = index + 1;
+  }
+  checkpoint.pendingBytes = Uint8Array.from(bytes.subarray(lineStart));
+  if (checkpoint.pendingBytes.length > 0) {
+    const line = decoder.decode(checkpoint.pendingBytes);
     try {
       JSON.parse(line);
       reduceSessionLine(checkpoint, line);
@@ -192,6 +205,7 @@ async function consumeFull(filePath: string): Promise<SessionCheckpointResult> {
   let tailChunks: Buffer<ArrayBufferLike>[] = [];
   stream.on('data', (value: Buffer) => {
     checkpoint.bytesRead += value.length;
+    checkpoint.trailingGuard = updateTrailingGuard(checkpoint.trailingGuard, value);
     const lastNewline = value.lastIndexOf(0x0a);
     if (lastNewline === -1) {
       tailChunks.push(value);
@@ -232,6 +246,31 @@ async function consumeFull(filePath: string): Promise<SessionCheckpointResult> {
 
 export async function parseSessionToCheckpoint(filePath: string): Promise<SessionCheckpointResult> {
   return consumeFull(filePath);
+}
+
+export async function checkpointPrefixMatches(
+  filePath: string,
+  checkpoint: SessionParseCheckpoint
+): Promise<boolean> {
+  const guard = checkpoint.trailingGuard;
+  if (guard.length === 0) return checkpoint.bytesRead === 0;
+  if (checkpoint.bytesRead < guard.length) return false;
+  let handle: FileHandle | undefined;
+  try {
+    handle = await fs.promises.open(filePath, 'r');
+    const actual = Buffer.alloc(guard.length);
+    const { bytesRead } = await handle.read(
+      actual,
+      0,
+      actual.length,
+      checkpoint.bytesRead - guard.length
+    );
+    return bytesRead === guard.length && actual.equals(Buffer.from(guard));
+  } catch {
+    return false;
+  } finally {
+    await handle?.close();
+  }
 }
 
 export async function appendSessionToCheckpoint(
