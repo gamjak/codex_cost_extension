@@ -1,4 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
+import * as path from 'node:path';
+
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({ output: [] as string[], values: new Map<string, unknown>(), statusShows: 0 }));
 vi.mock('vscode', () => ({
@@ -14,9 +18,15 @@ vi.mock('vscode', () => ({
 }));
 
 import { CodexCostTreeProvider } from '../../src/view/costTreeProvider';
+import { SessionRepository } from '../../src/data/sessionRepository';
+
+const tempDirectories: string[] = [];
 
 describe('Cost tree provider snapshot publication', () => {
   beforeEach(() => { mocks.output.length = 0; mocks.values.clear(); mocks.statusShows = 0; });
+  afterEach(async () => {
+    await Promise.all(tempDirectories.splice(0).map((directory) => fs.rm(directory, { recursive: true, force: true })));
+  });
   it('publishes successful snapshots and retains the last one across a failed refresh', async () => {
     const load = vi.fn()
       .mockResolvedValueOnce({ sessions: [], filesCount: 1, warnings: ['first'] })
@@ -43,5 +53,29 @@ describe('Cost tree provider snapshot publication', () => {
     expect(provider.getLatestCostData()?.configuration.budgetSettings.dayAmount).toBe(25);
     expect(updater).toHaveBeenCalledTimes(2);
     expect(mocks.statusShows).toBeGreaterThan(showsAfterScan);
+  });
+
+  it('publishes the same session snapshot after incremental append as a fresh repository', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'codex-cost-snapshot-'));
+    tempDirectories.push(root);
+    const sessionPath = path.join(root, 'session.jsonl');
+    const record = (tokens: number, timestamp: string) => JSON.stringify({
+      timestamp,
+      type: 'event_msg',
+      payload: { type: 'token_count', info: { total_token_usage: { input_tokens: tokens, output_tokens: 1 } } }
+    });
+    await fs.writeFile(sessionPath,
+      `${JSON.stringify({ timestamp: '2026-07-10T10:00:00.000Z', type: 'session_meta', payload: { id: 'incremental' } })}\n` +
+      `${record(10, '2026-07-10T10:00:01.000Z')}\n`);
+    const repository = new SessionRepository();
+    const context = { workspaceState: { get: vi.fn((_key: string, fallback: unknown) => fallback), update: vi.fn() }, subscriptions: [] };
+    const provider = new CodexCostTreeProvider(context as never, repository);
+    mocks.values.set('logRoots', [root]);
+    await provider.refresh();
+    await fs.appendFile(sessionPath, `${record(25, '2026-07-10T10:00:02.000Z')}\n`);
+
+    await provider.refresh();
+    const fresh = await new SessionRepository().load([root]);
+    expect(provider.getLatestCostData()?.sessions).toEqual(fresh.sessions);
   });
 });
