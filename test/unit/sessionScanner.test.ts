@@ -83,7 +83,7 @@ describe('findSessionFileDescriptors', () => {
   it('bounds concurrent metadata operations', async () => {
     const root = await makeFixture(
       Object.fromEntries(
-        Array.from({ length: 12 }, (_, index) => [`${index}/session.jsonl`, '{}\n'])
+        Array.from({ length: 12 }, (_, index) => [`session-${index}.jsonl`, '{}\n'])
       )
     );
     let active = 0;
@@ -101,7 +101,7 @@ describe('findSessionFileDescriptors', () => {
     });
 
     expect(maximum).toBeLessThanOrEqual(2);
-    expect(maximum).toBeGreaterThan(0);
+    expect(maximum).toBeGreaterThan(1);
     expect(active).toBe(0);
   });
 
@@ -114,6 +114,19 @@ describe('findSessionFileDescriptors', () => {
     expect(descriptors.map(({ filePath }) => filePath)).toEqual([
       path.join(root, 'session.jsonl')
     ]);
+  });
+
+  it('does not mask observer errors that resemble filesystem errors', async () => {
+    const root = await makeFixture({ 'session.jsonl': '{}\n' });
+    const observerError = Object.assign(new Error('observer failed'), { code: 'ENOENT' });
+
+    await expect(
+      findSessionFileDescriptors([root], {
+        onMetadataStart: () => {
+          throw observerError;
+        }
+      })
+    ).rejects.toBe(observerError);
   });
 
   it.skipIf(process.platform === 'win32')(

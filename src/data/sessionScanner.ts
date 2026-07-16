@@ -44,6 +44,7 @@ export async function findSessionFileDescriptors(
   const concurrency = Math.max(1, Math.floor(options.concurrency ?? 8));
   const directoryQueue = Array.from(new Set(logRoots.map((root) => path.resolve(root))));
   const queuedDirectories = new Set(directoryQueue);
+  const candidateFiles = new Set<string>();
   const descriptors = new Map<string, SessionFileDescriptor>();
   const waiters = new Set<() => void>();
   let queueIndex = 0;
@@ -101,17 +102,7 @@ export async function findSessionFileDescriptors(
               continue;
             }
 
-            try {
-              options.onMetadataStart?.();
-              const stats = await fs.stat(fullPath);
-              descriptors.set(fullPath, toDescriptor(fullPath, stats));
-            } catch (error) {
-              if (!isIgnoredFileSystemError(error)) {
-                throw error;
-              }
-            } finally {
-              options.onMetadataEnd?.();
-            }
+            candidateFiles.add(fullPath);
           }
         } catch (error) {
           if (!isIgnoredFileSystemError(error)) {
@@ -125,6 +116,32 @@ export async function findSessionFileDescriptors(
   };
 
   await Promise.all(Array.from({ length: concurrency }, () => worker()));
+
+  const candidates = Array.from(candidateFiles).sort((left, right) => left.localeCompare(right));
+  let nextCandidate = 0;
+  const metadataWorker = async (): Promise<void> => {
+    while (nextCandidate < candidates.length) {
+      const filePath = candidates[nextCandidate];
+      nextCandidate += 1;
+      options.onMetadataStart?.();
+      try {
+        let stats: Stats;
+        try {
+          stats = await fs.stat(filePath);
+        } catch (error) {
+          if (isIgnoredFileSystemError(error)) {
+            continue;
+          }
+          throw error;
+        }
+        descriptors.set(filePath, toDescriptor(filePath, stats));
+      } finally {
+        options.onMetadataEnd?.();
+      }
+    }
+  };
+
+  await Promise.all(Array.from({ length: Math.min(concurrency, candidates.length) }, () => metadataWorker()));
 
   return Array.from(descriptors.values()).sort((left, right) =>
     left.filePath.localeCompare(right.filePath)
