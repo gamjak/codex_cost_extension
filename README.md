@@ -15,7 +15,7 @@ Codex Cost is a local VS Code extension that estimates Codex usage cost from ses
 - Can track day, week, or month budgets in the VS Code status bar
 - Shows one warning at the configured budget threshold and one when the budget is exceeded
 - Shows today's workspace spend, daily budget, remaining budget, and end-of-day projection
-- Opens a local editor dashboard with seven-day spend, model costs, and recent sessions
+- Opens a local Cost Center for period comparisons and drill-down by session, project, or model
 - Offers direct actions to configure the daily budget and copy a cost summary
 - Refreshes the sidebar and status bar automatically based on a configurable interval
 - Caches unchanged session files so recurring refreshes only parse new or modified logs
@@ -97,11 +97,17 @@ You can configure the fixed filter, budgets, and visible status bar items in VS 
   - `month` = current month
 - Budget notifications are enabled by default and are shown once per threshold and calendar period. Set `codexCost.budget.notifications.enabled` to `false` to disable them. The keys persist across VS Code restarts and reset automatically when the next day, week, or month begins. Notifications are skipped when pricing gaps prevent a reliable estimate.
 
-## Daily cost control
+## Cost Center workflow
 
 The budget status item focuses on today's workspace estimate. With a daily budget configured, it shows spend, budget, and an `On track`, `Watch`, or `Over budget` state. The projection estimates end-of-day cost from usage so far; it is omitted when no priced usage is available. Values remain API-equivalent estimates, not billed cost.
 
-Click a Codex Cost status item or run **Codex Cost: Open Cost Dashboard** to open the editor dashboard. It shows the daily control, seven local calendar days of spending, per-model cost, and recent sessions. Everything is calculated from local logs.
+Open the Cost Center by selecting a Codex Cost status-bar item, using the Cost Center button in the Codex Cost sidebar, or running **Codex Cost: Open Cost Center** from the Command Palette. It shares the sidebar's **Workspace** or **All Sessions** scope, so changing scope in either place updates the same local report.
+
+Choose **Today**, **7 days**, **30 days**, or a custom inclusive date range. Enable comparison to place the selected period beside the immediately preceding period of the same length. The Overview summarizes the result; the **Sessions**, **Projects**, and **Models** sections provide analysis tables. Selecting a project or model opens the matching sessions, where the filter chip can be removed to return to the full list. Scope, range, comparison choice, and section are remembered between Cost Center visits.
+
+Cost Center settings use a guided view for common choices such as the default scope, default range, comparison, refresh, budgets, notifications, and status-bar visibility. Use **Advanced settings** for the complete VS Code configuration, including log roots, source filters, and model pricing. Unsaved guided changes prompt you to save or discard them before the settings view closes.
+
+A **partial** price means that token usage is known but at least one model has no matching price, so the displayed cost covers only priced usage and must not be treated as a complete total. Tokens and affected sessions remain visible; add an exact or family price in Advanced settings to complete the estimate.
 
 Run **Codex Cost: Open Cost Control** for a compact action menu, or **Codex Cost: Configure Daily Budget** to set a positive USD value for `codexCost.budget.dayAmount`. **Codex Cost: Copy Cost Summary** copies the current local workspace summary to the clipboard.
 
@@ -113,9 +119,11 @@ Run **Codex Cost: Open Cost Control** for a compact action menu, or **Codex Cost
 ## Privacy and data access
 
 - Session logs are read locally and are never uploaded by this extension.
+- Cost Center aggregation, filtering, comparisons, and remembered preferences stay on the current machine.
 - The extension does not make billing, authentication, telemetry, or pricing network requests.
 - Configured log roots may point outside the current workspace. Only `.jsonl` files below those roots are inspected.
 - Workspace paths can appear in local tooltips and the Codex Cost output channel, but are not transmitted.
+- Copied summaries omit full local paths, prompts, and responses.
 
 ## Performance and diagnostics
 
