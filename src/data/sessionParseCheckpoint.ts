@@ -1,5 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import * as readline from 'node:readline';
 
 import type { ParsedSession, TokenUsageSnapshot } from '../domain/types';
 
@@ -185,8 +186,44 @@ async function consume(filePath: string, source: SessionParseCheckpoint): Promis
   return resultFrom(checkpoint);
 }
 
+async function consumeFull(filePath: string): Promise<SessionCheckpointResult> {
+  const checkpoint = createCheckpoint(filePath);
+  const stream = fs.createReadStream(filePath);
+  let tail: Buffer<ArrayBufferLike> = Buffer.alloc(0);
+  stream.on('data', (value: Buffer) => {
+    checkpoint.bytesRead += value.length;
+    const lastNewline = value.lastIndexOf(0x0a);
+    tail = lastNewline === -1
+      ? Buffer.concat([tail, value])
+      : value.subarray(lastNewline + 1);
+  });
+  const reader = readline.createInterface({ input: stream, crlfDelay: Infinity });
+  let previousLine: string | undefined;
+
+  for await (const line of reader) {
+    if (previousLine !== undefined) {
+      reduceSessionLine(checkpoint, previousLine);
+    }
+    previousLine = line;
+  }
+
+  if (previousLine !== undefined) {
+    if (tail.length === 0) {
+      reduceSessionLine(checkpoint, previousLine);
+    } else {
+      try {
+        JSON.parse(previousLine);
+        reduceSessionLine(checkpoint, previousLine);
+      } catch {
+        checkpoint.pendingBytes = Uint8Array.from(tail);
+      }
+    }
+  }
+  return resultFrom(checkpoint);
+}
+
 export async function parseSessionToCheckpoint(filePath: string): Promise<SessionCheckpointResult> {
-  return consume(filePath, createCheckpoint(filePath));
+  return consumeFull(filePath);
 }
 
 export async function appendSessionToCheckpoint(

@@ -35,6 +35,13 @@ async function temporaryJsonl(lines: unknown[]): Promise<string> {
   return filePath;
 }
 
+async function temporaryRawJsonl(contents: string | Buffer): Promise<string> {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'jsonl-checkpoint-'));
+  const filePath = path.join(directory, 'session.jsonl');
+  await fs.writeFile(filePath, contents);
+  return filePath;
+}
+
 describe('parseSessionFile', () => {
   it('keeps cumulative snapshot history alongside the latest model/cwd data', async () => {
     const fixturePath = path.resolve('test/fixtures/workspace-session.jsonl');
@@ -145,6 +152,40 @@ describe('parseSessionFile', () => {
 
     expect(incremental.result).toEqual(complete.result);
     expect(incremental.checkpoint.bytesRead).toBe((await fs.stat(filePath)).size);
+  });
+
+  it.each([
+    ['newline-terminated final record', '\n'],
+    ['valid non-newline final record', ''],
+    ['CRLF records', '\r\n']
+  ])('builds an equivalent resumable checkpoint for %s', async (_label, separator) => {
+    const records = [
+      { timestamp: '2026-07-16T12:00:00.000Z', type: 'session_meta', payload: { id: 'session-é' } },
+      { timestamp: '2026-07-16T12:00:30.000Z', type: 'turn_context', payload: { cwd: 'C:\\répo', model: 'mödél' } },
+      tokenRecord('2026-07-16T12:01:00.000Z', 100)
+    ];
+    const delimiter = separator === '\r\n' ? '\r\n' : '\n';
+    const filePath = await temporaryRawJsonl(`${records.map((entry) => JSON.stringify(entry)).join(delimiter)}${separator}`);
+
+    const checkpoint = await parseSessionToCheckpoint(filePath);
+    const parsed = await parseSessionFileWithDiagnostics(filePath);
+
+    expect(checkpoint.result).toEqual(parsed);
+    expect(checkpoint.checkpoint.bytesRead).toBe((await fs.stat(filePath)).size);
+    expect(checkpoint.checkpoint.pendingBytes).toHaveLength(0);
+    expect(checkpoint.result.session).toMatchObject({ sessionId: 'session-é', cwd: 'C:\\répo', model: 'mödél' });
+  });
+
+  it('retains exact invalid partial final bytes without counting them malformed', async () => {
+    const complete = `${JSON.stringify({ timestamp: '2026-07-16T12:00:00.000Z', type: 'session_meta', payload: { id: 'session-1' } })}\n`;
+    const partial = Buffer.from('{"payload":"caf\xc3', 'binary');
+    const filePath = await temporaryRawJsonl(Buffer.concat([Buffer.from(complete), partial]));
+
+    const checkpoint = await parseSessionToCheckpoint(filePath);
+
+    expect(Buffer.from(checkpoint.checkpoint.pendingBytes)).toEqual(partial);
+    expect(checkpoint.checkpoint.bytesRead).toBe(Buffer.byteLength(complete) + partial.length);
+    expect(checkpoint.result.diagnostics.malformedLines).toBe(0);
   });
 
   it('retains an incomplete JSON fragment without reporting it malformed until completed', async () => {
