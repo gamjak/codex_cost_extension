@@ -46,4 +46,25 @@ describe('parseCostCenterMessage', () => {
     ];
     for (const message of invalid) expect(parseCostCenterMessage(message)).toBeUndefined();
   });
+
+  it.each([
+    ['malformed', '2026-07-16', '2026-07-17T00:00:00.000Z'],
+    ['non-date', 'not-a-date', 'also-not-a-date'],
+    ['impossible date', '2026-02-31T00:00:00.000Z', '2026-03-04T00:00:00.000Z'],
+    ['equal', '2026-07-16T00:00:00.000Z', '2026-07-16T00:00:00.000Z'],
+    ['reversed', '2026-07-17T00:00:00.000Z', '2026-07-16T00:00:00.000Z'],
+    ['absurd span', '2026-07-16T00:00:00.000Z', '2026-07-18T00:00:00.000Z'],
+    ['overlong', `${'2'.repeat(4097)}`, '2026-07-17T00:00:00.000Z']
+  ])('rejects %s chart bounds', (_label, pointStart, pointEndExclusive) => {
+    expect(parseCostCenterMessage({ type: 'filterChartPoint', pointStart, pointEndExclusive })).toBeUndefined();
+  });
+
+  it.each([
+    ['hourly', '2026-07-16T00:00:00.000Z', '2026-07-16T01:00:00.000Z'],
+    ['23-hour DST day', '2026-03-29T00:00:00.000Z', '2026-03-29T23:00:00.000Z'],
+    ['25-hour DST day', '2026-10-25T00:00:00.000Z', '2026-10-26T01:00:00.000Z']
+  ])('accepts canonical %s chart bounds', (_label, pointStart, pointEndExclusive) => {
+    const message = { type: 'filterChartPoint', pointStart, pointEndExclusive };
+    expect(parseCostCenterMessage(message)).toEqual(message);
+  });
 });

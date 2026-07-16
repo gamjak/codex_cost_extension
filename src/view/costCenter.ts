@@ -81,11 +81,24 @@ export function parseCostCenterMessage(value: unknown): CostCenterMessage | unde
   if ((type === 'setSettingsGroup' || type === 'resetSettingsGroup') && oneOf(value.value, settingsGroups)) return { type, value: value.value };
   if (type === 'clearFilter' && oneOf(value.value, ['project', 'model', 'point'])) return { type, value: value.value };
   if (oneOf(type, ['drillProject', 'drillModel', 'excludeProject', 'toggleProjectPin', 'toggleSession']) && text(value.key)) return { type, key: value.key };
-  if (type === 'filterChartPoint' && text(value.pointStart) && text(value.pointEndExclusive) && value.pointStart < value.pointEndExclusive) return { type, pointStart: value.pointStart, pointEndExclusive: value.pointEndExclusive };
+  if (type === 'filterChartPoint' && hasValidChartBounds(value)) return { type, pointStart: value.pointStart, pointEndExclusive: value.pointEndExclusive };
   if (type === 'setSearch' && text(value.value)) return { type, value: value.value };
   if (type === 'setSort' && oneOf(value.key, ['sessions', 'projects', 'models']) && validSort(value.key, value.value)) return { type, key: value.key, value: value.value };
   if (type === 'updateSettingField' && oneOf(value.key, Object.keys(settingKinds) as GuidedSettingField[]) && validSettingValue(value.key, value.value)) return { type, key: value.key, value: value.value };
   return undefined;
+}
+
+function hasValidChartBounds(value: Record<string, unknown>): value is Record<string, unknown> & { pointStart: string; pointEndExclusive: string } {
+  const start = value.pointStart;
+  const end = value.pointEndExclusive;
+  const canonicalIso = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+  if (!text(start) || !text(end) || !canonicalIso.test(start) || !canonicalIso.test(end)) return false;
+  const startMs = Date.parse(start);
+  const endMs = Date.parse(end);
+  const duration = endMs - startMs;
+  return Number.isFinite(startMs) && Number.isFinite(endMs) &&
+    new Date(startMs).toISOString() === start && new Date(endMs).toISOString() === end &&
+    duration > 0 && duration <= 26 * 60 * 60 * 1000;
 }
 
 function validSort(table: 'sessions' | 'projects' | 'models', value: unknown): value is string {
