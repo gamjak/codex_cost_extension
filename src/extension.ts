@@ -9,6 +9,7 @@ import { SessionRepository } from './data/sessionRepository';
 import { createPeriodBoundaryController } from './periodBoundaryController';
 import { CostCenter } from './view/costCenter';
 import { CostCenterController } from './view/costCenterController';
+import { buildCostCenterSummaryText } from './view/costCenterSummary';
 import { buildCostControlQuickPickPlaceholder } from './view/costControlPresentation';
 import { CodexCostTreeProvider } from './view/costTreeProvider';
 
@@ -51,7 +52,13 @@ export function activate(context: vscode.ExtensionContext): void {
   });
   const costCenter = new CostCenter({
     handleMessage: async (message) => {
-      if (message.type === 'copySummary') await provider.copySummary();
+      if (message.type === 'copySummary') {
+        const report = controller.getModel()?.report;
+        if (report) {
+          await vscode.env.clipboard.writeText(buildCostCenterSummaryText(report));
+          await vscode.window.showInformationMessage('Cost Center summary copied to the clipboard.');
+        }
+      }
       return controller.handle(message);
     },
     reportError: (error) => controller.reportError(error)

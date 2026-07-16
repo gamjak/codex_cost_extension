@@ -1,6 +1,7 @@
 import type { ExtensionConfig } from '../config';
 import type { LoadSessionsResult } from '../data/sessionRepository';
 import { buildCostCenterReport } from '../domain/costCenterAnalytics';
+import { resolveCostCenterRange } from '../domain/costCenterTimeRange';
 import {
   createGuidedSettingsDraft, resetSettingsGroup, settingsUpdates, validateGuidedSettings,
   type GuidedSettingField, type GuidedSettingsDraft, type GuidedSettingsGroup
@@ -47,6 +48,7 @@ export class CostCenterController {
   private state?: CostCenterUiState;
   private model?: CostCenterViewModel;
   private settings?: { open: true; group: GuidedSettingsGroup; draft: GuidedSettingsDraft; original: GuidedSettingsDraft; errors: Record<string, string>; diagnostics: LogRootDiagnostic[] };
+  private rangeError?: string;
 
   constructor(private readonly deps: CostCenterControllerDependencies) {}
 
@@ -63,7 +65,16 @@ export class CostCenterController {
     switch (message.type) {
       case 'refresh': await this.deps.refresh(); break;
       case 'setScope': this.state = reduceCostCenterState(this.state!, { type: 'setScope', scope: message.value }); await this.savePreferences(); break;
-      case 'setRange': this.state = reduceCostCenterState(this.state!, { type: 'setRange', range: message.value }); await this.savePreferences(); break;
+      case 'setRange':
+        try {
+          resolveCostCenterRange(message.value, this.deps.getSnapshot()?.refreshedAt ?? new Date());
+          this.state = reduceCostCenterState(this.state!, { type: 'setRange', range: message.value });
+          this.rangeError = undefined;
+          await this.savePreferences();
+        } catch {
+          this.rangeError = 'Enter valid dates in DD.MM.YYYY format with the end on or after the start.';
+        }
+        break;
       case 'setSection': this.state = reduceCostCenterState(this.state!, { type: 'setSection', section: message.value }); await this.savePreferences(); break;
       case 'setSearch': this.state = reduceCostCenterState(this.state!, { type: 'setSearch', value: message.value }); break;
       case 'toggleSession': this.state = reduceCostCenterState(this.state!, { type: 'toggleSession', sessionKey: message.key }); break;
@@ -128,7 +139,7 @@ export class CostCenterController {
     const config = this.deps.readConfiguration(); const filters = this.state!.filters;
     const report = buildCostCenterReport({ sessions: snapshot.sessions, filesCount: snapshot.filesCount, pricingByModel: config.pricingByModel, customPricingModels: config.customPricingModels, repositoryWarnings: snapshot.warnings, workspaceRoots: snapshot.workspaceRoots, sessionSources: config.sessionSources, budgetSettings: config.budgetSettings, filters, pinnedProjects: normalizedPaths(this.deps.globalState.get<string[]>(PINNED_PROJECTS_KEY, []) ?? []), excludedProjects: normalizedPaths(this.deps.globalState.get<string[]>(EXCLUDED_PROJECTS_KEY, []) ?? []), now: snapshot.refreshedAt });
     const settings = this.settings && { open: true as const, group: this.settings.group, draft: this.settings.draft, errors: this.settings.errors, diagnostics: this.settings.diagnostics, dirty: JSON.stringify(this.settings.draft) !== JSON.stringify(this.settings.original) };
-    this.model = { report, uiState: this.state!, settings }; return this.model;
+    this.model = { report, uiState: this.state!, settings, rangeError: this.rangeError }; return this.model;
   }
 }
 

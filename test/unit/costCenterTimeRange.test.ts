@@ -48,6 +48,12 @@ describe('resolveCostCenterRange', () => {
     }, now)).toThrow('End date must be on or after start date.');
   });
 
+  it('rejects impossible calendar dates instead of normalizing them', () => {
+    expect(() => resolveCostCenterRange({
+      kind: 'custom', startDate: '31.02.2026', endDate: '01.03.2026', compare: false
+    }, now)).toThrow('Date must use DD.MM.YYYY format.');
+  });
+
   it('counts custom calendar days without dividing milliseconds', () => {
     const range = resolveCostCenterRange({
       kind: 'custom',
@@ -60,5 +66,20 @@ describe('resolveCostCenterRange', () => {
     expect(range.current.endExclusive.getDate()).toBe(31);
     expect(range.comparison?.endExclusive.getDate()).toBe(27);
     expect(range.comparison?.start.getDate()).toBe(23);
+  });
+
+  it('keeps equal local-calendar comparison days across real Berlin DST', () => {
+    const previousTimezone = process.env.TZ;
+    process.env.TZ = 'Europe/Berlin';
+    try {
+      const range = resolveCostCenterRange({
+        kind: 'custom', startDate: '28.03.2026', endDate: '30.03.2026', compare: true
+      }, new Date('2026-03-30T12:00:00.000Z'));
+      expect(range.current.endExclusive.getTime() - range.current.start.getTime()).toBe(71 * 60 * 60 * 1000);
+      expect(range.comparison?.start.getDate()).toBe(25);
+      expect(range.comparison?.endExclusive.getDate()).toBe(28);
+    } finally {
+      process.env.TZ = previousTimezone;
+    }
   });
 });

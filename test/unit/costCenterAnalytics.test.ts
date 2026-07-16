@@ -53,6 +53,9 @@ describe('buildCostCenterReport', () => {
     expect(report.sessions[0]?.sharePercent).toBeGreaterThan(0);
     expect(report.chart).toHaveLength(7);
     expect(report.drivers.project?.label).toBe('one');
+    expect(report.drivers.project?.sharePercent).toBeCloseTo(
+      (report.drivers.project?.cost ?? 0) / (report.summary.cost.value ?? 1) * 100
+    );
   });
 
   it('keeps tokens and marks money partial when pricing is missing', () => {
@@ -146,5 +149,12 @@ describe('buildCostCenterReport', () => {
     const row = report.sessions.find((session) => session.sessionId === 'two-main');
     expect(row?.timeline.some((point) => point.tokens > 0 && point.sessions === 1)).toBe(true);
     expect(row?.timeline.reduce((total, point) => total + point.tokens, 0)).toBe(750);
+  });
+
+  it('carries comparison tokens and session counts on chart points', () => {
+    const report = buildReport({ filters: { scope: 'all', range: { kind: 'today', compare: true }, section: 'overview' } });
+    const point = report.chart.find((entry) => entry.comparisonCost !== undefined);
+    expect(point?.comparisonTokens).toBeGreaterThan(0);
+    expect(point?.comparisonSessions).toBeGreaterThan(0);
   });
 });

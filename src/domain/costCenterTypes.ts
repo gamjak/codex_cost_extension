@@ -49,6 +49,8 @@ export interface CostCenterChartPoint {
   endExclusive: string;
   cost?: number;
   comparisonCost?: number;
+  comparisonTokens?: number;
+  comparisonSessions?: number;
   tokens: number;
   sessions: number;
   partial: boolean;
@@ -83,6 +85,7 @@ export interface CostCenterProjectRow {
   activeDays: number;
   topModel?: string;
   averageCostPerSession?: number;
+  sharePercent?: number;
   partial: boolean;
   pinned: boolean;
   excluded: boolean;

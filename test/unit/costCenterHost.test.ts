@@ -102,6 +102,21 @@ describe('CostCenter host', () => {
     await mocks.panels[0].receive({ type: 'excludeProject', key: 'project' });
     expect(handleMessage).toHaveBeenCalledWith({ type: 'excludeProject', key: 'project' });
   });
+
+  it('requires modal confirmation before resetting a settings group', async () => {
+    const handleMessage = vi.fn();
+    mocks.warnings.push(undefined, 'Restore');
+    const host = new CostCenter(actions({ handleMessage }));
+    host.show(model('Dirty', true));
+    await mocks.panels[0].receive({ type: 'resetSettingsGroup', value: 'budget' });
+    expect(handleMessage).not.toHaveBeenCalled();
+    await mocks.panels[0].receive({ type: 'resetSettingsGroup', value: 'budget' });
+    expect(handleMessage).toHaveBeenCalledWith({ type: 'resetSettingsGroup', value: 'budget' });
+    expect(vi.mocked((await import('vscode')).window.showWarningMessage)).toHaveBeenLastCalledWith(
+      'Restore recommended settings for this group? Unsaved draft values will be replaced.',
+      { modal: true }, 'Restore'
+    );
+  });
 });
 
 function actions(overrides: Partial<CostCenterActions> = {}): CostCenterActions {

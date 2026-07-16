@@ -52,6 +52,15 @@ describe('Cost Center integration controller', () => {
     expect((await saved.controller.open()).report.filters).toMatchObject({ scope: 'all', range: { kind: 'today' }, section: 'projects' });
   });
 
+  it('leaves the previous range and persisted preferences unchanged for invalid custom dates', async () => {
+    const { controller, workspaceState } = setup();
+    const initial = await controller.open();
+    const result = await controller.handle({ type: 'setRange', value: { kind: 'custom', startDate: '31.02.2026', endDate: '01.03.2026', compare: true } });
+    expect(result.report.filters.range).toEqual(initial.report.filters.range);
+    expect(result.rangeError).toBe('Enter valid dates in DD.MM.YYYY format with the end on or after the start.');
+    expect(workspaceState.get('codexCost.costCenter.preferences')).toBeUndefined();
+  });
+
   it('re-aggregates drill-down state from the cached snapshot and only refreshes explicit data actions', async () => {
     const { controller, deps } = setup(); await controller.open();
     await controller.handle({ type: 'drillModel', key: 'gpt-5' });

@@ -62,6 +62,7 @@ describe('buildCostCenterHtml', () => {
     expect(html).toContain('data-action="drillProject"');
     expect(html).toContain('data-action="drillModel"');
     expect(html).toContain('data-action="toggleSession"');
+    expect(html).toContain('data-action="copySummary"');
     expect(html).toContain('12.5% of estimated cost');
     for (const section of ['overview', 'sessions', 'projects', 'models']) {
       expect(html).toContain(`aria-controls="panel-${section}"`);
@@ -93,6 +94,32 @@ describe('buildCostCenterHtml', () => {
     expect(html).toContain('aria-describedby="chart-detail-2026-07-16"');
     expect(html).toContain('Current period');
     expect(html).toContain('Previous period');
+  });
+
+  it('omits the comparison series and legend when comparison is disabled', () => {
+    const model = viewModel();
+    model.report.filters.range.compare = false;
+    model.report.chart[0].comparisonCost = undefined;
+    const html = buildCostCenterHtml(model, 'safe-nonce');
+    expect(html).not.toContain('class="chart-comparison"');
+    expect(html).not.toContain('<span class="legend-comparison">');
+  });
+
+  it('describes the comparison bar with comparison tokens and sessions', () => {
+    const model = viewModel();
+    model.report.chart[0].comparisonTokens = 77;
+    model.report.chart[0].comparisonSessions = 3;
+    const html = buildCostCenterHtml(model, 'safe-nonce');
+    expect(html).toContain('previous:');
+    expect(html).toContain('77 tokens; 3 sessions');
+  });
+
+  it('renders an inline custom range error', () => {
+    const model = viewModel();
+    model.rangeError = 'Enter valid dates.';
+    const html = buildCostCenterHtml(model, 'safe-nonce');
+    expect(html).toContain('role="alert"');
+    expect(html).toContain('Enter valid dates.');
   });
 
   it('derives a budget reference line and complete point details from report values', () => {
@@ -208,6 +235,23 @@ describe('buildCostCenterHtml', () => {
     client.click(new client.Element({ action: 'resetSettingsGroup', value: 'notifications' }));
 
     expect(client.posts).toEqual([{ type: 'resetSettingsGroup', value: 'notifications' }]);
+  });
+
+  it('keeps partial custom date edits local and posts only a complete valid range', () => {
+    const client = runClient();
+    const range = new client.Select({ control: 'range', action: 'setRange' }); range.value = 'custom';
+    const compare = new client.Input({ control: 'compare', action: 'setRange' }, 'checkbox'); compare.checked = true;
+    const start = new client.Input({ control: 'start-date', action: 'setRange' }, 'text', '31.02.2026');
+    const end = new client.Input({ control: 'end-date', action: 'setRange' }, 'text', '');
+    client.elements['[data-control="range"]'] = range;
+    client.elements['[data-control="compare"]'] = compare;
+    client.elements['[data-control="start-date"]'] = start;
+    client.elements['[data-control="end-date"]'] = end;
+    client.change(start);
+    expect(client.posts).toEqual([]);
+    start.value = '28.02.2026'; end.value = '01.03.2026';
+    client.change(end);
+    expect(client.posts).toEqual([{ type: 'setRange', value: { kind: 'custom', startDate: '28.02.2026', endDate: '01.03.2026', compare: true } }]);
   });
 
   it('rejects unknown fields and serializes allowlisted field values by type', () => {

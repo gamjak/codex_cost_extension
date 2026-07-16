@@ -11,11 +11,25 @@ export function buildCostCenterClientScript(): string {
       ? { kind: 'custom', startDate: document.querySelector('[data-control="start-date"]')?.value || '', endDate: document.querySelector('[data-control="end-date"]')?.value || '', compare: Boolean(compare?.checked) }
       : { kind: range.value, compare: Boolean(compare?.checked) };
   };
+  const validLocalDate = (value) => {
+    const match = /^(\\d{2})\\.(\\d{2})\\.(\\d{4})$/.exec(value);
+    if (!match) return undefined;
+    const date = new Date(Number(match[3]), Number(match[2]) - 1, Number(match[1]));
+    return date.getFullYear() === Number(match[3]) && date.getMonth() === Number(match[2]) - 1 && date.getDate() === Number(match[1]) ? date : undefined;
+  };
   const postAction = (target) => {
     const type = target.dataset.action;
     if (!type) return;
     if (type === 'setScope') return post({ type: 'setScope', value: target.value });
-    if (type === 'setRange') return post({ type: 'setRange', value: rangeValue() });
+    if (type === 'setRange') {
+      const value = rangeValue();
+      if (!value) return;
+      if (value.kind === 'custom') {
+        const start = validLocalDate(value.startDate); const end = validLocalDate(value.endDate);
+        if (!start || !end || end < start) return;
+      }
+      return post({ type: 'setRange', value });
+    }
     if (type === 'setSection') return post({ type: 'setSection', value: target.dataset.value });
     if (type === 'setSettingsGroup') return post({ type: 'setSettingsGroup', value: target.dataset.value });
     if (type === 'resetSettingsGroup') return post({ type: 'resetSettingsGroup', value: target.dataset.value });

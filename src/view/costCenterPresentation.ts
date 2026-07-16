@@ -22,6 +22,7 @@ export interface CostCenterViewModel {
   report: CostCenterReport;
   uiState: CostCenterUiState;
   settings?: CostCenterSettingsView;
+  rangeError?: string;
 }
 
 export function escapeHtml(value: string): string {
@@ -43,7 +44,7 @@ function filters(report: CostCenterReport): string {
 
 function tabs(section: CostCenterReport['filters']['section']): string {
   const sections: Array<[CostCenterReport['filters']['section'], string]> = [['overview', 'Overview'], ['sessions', 'Sessions'], ['projects', 'Projects'], ['models', 'Models']];
-  return `<div role="tablist" aria-label="Cost Center sections">${sections.map(([key, label]) => `<button type="button" role="tab" tabindex="${key === section ? '0' : '-1'}" id="tab-${key}" aria-selected="${key === section}" aria-controls="panel-${key}" data-action="setSection" data-value="${key}">${label}</button>`).join('')}</div>`;
+  return `<button type="button" data-action="copySummary">Copy Summary</button><div role="tablist" aria-label="Cost Center sections">${sections.map(([key, label]) => `<button type="button" role="tab" tabindex="${key === section ? '0' : '-1'}" id="tab-${key}" aria-selected="${key === section}" aria-controls="panel-${key}" data-action="setSection" data-value="${key}">${label}</button>`).join('')}</div>`;
 }
 
 function panels(model: CostCenterViewModel): string {
@@ -55,7 +56,8 @@ function panels(model: CostCenterViewModel): string {
     ['models', buildModelsTable(model.report, model.uiState)]
   ];
   const analysisPanels = sections.map(([section, content]) => `<section id="panel-${section}" role="tabpanel" aria-labelledby="tab-${section}"${section === selected ? '' : ' hidden'}>${content}</section>`).join('');
-  return analysisPanels + (model.settings?.open ? buildCostCenterSettings(model.settings, escapeHtml) : '');
+  const rangeError = model.rangeError ? `<p class="notice" role="alert" id="cost-center-range-error">${escapeHtml(model.rangeError)}</p>` : '';
+  return rangeError + analysisPanels + (model.settings?.open ? buildCostCenterSettings(model.settings, escapeHtml) : '');
 }
 
 function styles(): string {

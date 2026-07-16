@@ -149,6 +149,13 @@ export class CostCenter implements vscode.Disposable {
         const choice = await vscode.window.showWarningMessage('Exclude this project from Cost Center totals?', { modal: true }, 'Exclude');
         if (choice !== 'Exclude') return;
       }
+      if (message.type === 'resetSettingsGroup') {
+        const choice = await vscode.window.showWarningMessage(
+          'Restore recommended settings for this group? Unsaved draft values will be replaced.',
+          { modal: true }, 'Restore'
+        );
+        if (choice !== 'Restore') return;
+      }
       const result = await this.dispatch(message);
       if (result) this.update(result);
     }
