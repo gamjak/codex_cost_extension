@@ -62,3 +62,20 @@ Final follow-up verification:
 - `pnpm run compile`: PASS.
 - `pnpm run package --out codex-cost-extension.vsix`: PASS; prepublish reran all 172 tests.
 - `pnpm run verify-package`: PASS; 46 package paths verified, including the summary runtime.
+
+## Malformed-date client follow-up
+
+The final client distinction is now explicit and regression-tested:
+
+- `input` events while a custom date is being typed remain DOM-local and silent.
+- Once both date fields are non-empty, `change` and capture-phase `blur` treat malformed formats such as `2026-03-01`, `1.3.2026`, and arbitrary text as committed invalid input.
+- Committed invalid input renders the exact accessible DD.MM.YYYY range message, posts zero `setRange` messages, and therefore cannot replace host state or preferences.
+- A subsequent valid exact range clears the inline error and posts once.
+
+RED evidence: all three malformed-format parameter cases failed because the client left the alert hidden.
+
+Final verification after the runtime change:
+
+- Focused client regression: PASS; full Vitest run reported 31 files and 175 tests.
+- `pnpm run check`: PASS; TypeScript, ESLint, 31 files, 175 tests.
+- Compile, VSIX package/prepublish, and package verification: PASS; package verifier accepted all 46 required paths.

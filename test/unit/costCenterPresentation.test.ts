@@ -282,6 +282,38 @@ describe('buildCostCenterHtml', () => {
     });
   });
 
+  it.each(['2026-03-01', '1.3.2026', 'not-a-date'])(
+    'keeps partial input quiet but reports completed malformed custom dates on change and blur (%s)',
+    (malformed) => {
+      const error = { textContent: '', hidden: true };
+      const client = runClient({ '[data-range-error]': error });
+      const range = new client.Select({ control: 'range', action: 'setRange' }); range.value = 'custom';
+      const compare = new client.Input({ control: 'compare', action: 'setRange' }, 'checkbox');
+      const start = new client.Input({ control: 'start-date', action: 'setRange' }, 'text', malformed);
+      const end = new client.Input({ control: 'end-date', action: 'setRange' }, 'text', '02.03.2026');
+      client.elements['[data-control="range"]'] = range;
+      client.elements['[data-control="compare"]'] = compare;
+      client.elements['[data-control="start-date"]'] = start;
+      client.elements['[data-control="end-date"]'] = end;
+
+      client.input(start);
+      expect(client.posts).toEqual([]);
+      expect(error).toEqual({ textContent: '', hidden: true });
+
+      client.change(start);
+      expect(client.posts).toEqual([]);
+      expect(error).toEqual({
+        textContent: 'Enter valid dates in DD.MM.YYYY format with the end on or after the start.',
+        hidden: false
+      });
+
+      error.textContent = ''; error.hidden = true;
+      client.blur(start);
+      expect(client.posts).toEqual([]);
+      expect(error.hidden).toBe(false);
+    }
+  );
+
   it('rejects unknown fields and serializes allowlisted field values by type', () => {
     const client = runClient();
     client.change(new client.Input({ action: 'updateSettingField', key: 'pricing.models' }, 'text', 'secret'));
@@ -356,7 +388,7 @@ function runClient(initialElements: Record<string, { textContent?: string; hidde
     HTMLTextAreaElement: ClientTextArea
   });
   const fire = (type: string, target: ClientElement) => listeners[type]({ target, preventDefault() {} });
-  return { posts, elements, Element: ClientElement, Input: ClientInput, Select: ClientSelect, TextArea: ClientTextArea, click: (target: ClientElement) => fire('click', target), change: (target: ClientElement) => fire('change', target), input: (target: ClientElement) => fire('input', target) };
+  return { posts, elements, Element: ClientElement, Input: ClientInput, Select: ClientSelect, TextArea: ClientTextArea, click: (target: ClientElement) => fire('click', target), change: (target: ClientElement) => fire('change', target), input: (target: ClientElement) => fire('input', target), blur: (target: ClientElement) => fire('blur', target) };
 }
 
 function settingsView(): NonNullable<CostCenterViewModel['settings']> {

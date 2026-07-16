@@ -32,7 +32,11 @@ export function buildCostCenterClientScript(): string {
       if (!value) return;
       if (value.kind === 'custom') {
         const complete = /^(\\d{2})\\.(\\d{2})\\.(\\d{4})$/;
-        if (!complete.test(value.startDate) || !complete.test(value.endDate)) return;
+        if (!value.startDate || !value.endDate) return;
+        if (!complete.test(value.startDate) || !complete.test(value.endDate)) {
+          showRangeError('Enter valid dates in DD.MM.YYYY format with the end on or after the start.');
+          return;
+        }
         const start = validLocalDate(value.startDate); const end = validLocalDate(value.endDate);
         if (!start || !end || end < start) {
           showRangeError('Enter valid dates in DD.MM.YYYY format with the end on or after the start.');
@@ -74,6 +78,11 @@ export function buildCostCenterClientScript(): string {
     if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement)) return;
     postAction(target);
   });
+  document.addEventListener('blur', (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement) || target.dataset.action !== 'setRange') return;
+    postAction(target);
+  }, true);
   document.addEventListener('input', (event) => {
     const target = event.target;
     if (!(target instanceof HTMLInputElement) || target.dataset.valueType !== 'number' || !target.dataset.key?.startsWith('budget.')) return;
