@@ -90,6 +90,30 @@ describe('buildCostCenterHtml', () => {
     expect(html).toContain('Current period');
     expect(html).toContain('Previous period');
   });
+
+  it('derives a budget reference line and complete point details from report values', () => {
+    const html = buildCostCenterHtml(viewModel(), 'safe-nonce');
+
+    expect(html).toContain('class="chart-budget-reference"');
+    expect(html).toContain('data-budget-amount="50"');
+    expect(html).toContain('y1="12"');
+    expect(html).toContain('y2="12"');
+    expect(html).toContain('Jul 16: current');
+    expect(html).toContain('1.234 tokens');
+    expect(html).toContain('1 session');
+    expect(html).toContain('data-tokens="1234"');
+    expect(html).toContain('data-sessions="1"');
+  });
+
+  it('uses theme-token styling to distinguish chart series and hides screen-reader details visually', () => {
+    const html = buildCostCenterHtml(viewModel(), 'safe-nonce');
+
+    expect(html).toContain('.chart-current { fill: var(--vscode-charts-blue); }');
+    expect(html).toContain('.chart-comparison { fill: var(--vscode-charts-orange); }');
+    expect(html).toContain('.legend-current::before');
+    expect(html).toContain('.legend-comparison::before');
+    expect(html).toContain('.sr-only { position: absolute; width: 1px; height: 1px;');
+  });
 });
 
 function viewModel(): CostCenterViewModel {

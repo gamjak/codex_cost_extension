@@ -1,6 +1,6 @@
 import type { CostCenterChartPoint, CostCenterReport } from '../domain/costCenterTypes';
 
-import { formatCostUsd } from './costDisplay';
+import { formatCostUsd, formatTokensDe } from './costDisplay';
 import { escapeHtml } from './costCenterPresentation';
 
 function formatCost(value: number | undefined, partial = false): string {
@@ -12,20 +12,22 @@ function formatPercent(value: number | undefined): string {
 }
 
 function pointDescription(point: CostCenterChartPoint): string {
-  return `${point.label}: current ${formatCost(point.cost, point.partial)}${point.comparisonCost === undefined ? '' : `, previous ${formatCost(point.comparisonCost)}`}`;
+  return `${point.label}: current ${formatCost(point.cost, point.partial)}${point.comparisonCost === undefined ? '' : `, previous ${formatCost(point.comparisonCost)}`}; ${formatTokensDe(point.tokens)} tokens; ${point.sessions} ${point.sessions === 1 ? 'session' : 'sessions'}`;
 }
 
 function buildChart(report: CostCenterReport): string {
-  const maximum = Math.max(0, ...report.chart.flatMap((point) => [point.cost ?? 0, point.comparisonCost ?? 0]));
+  const budgetAmount = report.budget.amount;
+  const maximum = Math.max(0, budgetAmount ?? 0, ...report.chart.flatMap((point) => [point.cost ?? 0, point.comparisonCost ?? 0]));
   const bars = report.chart.map((point, index) => {
     const currentHeight = maximum === 0 ? 2 : Math.max(2, Math.round((point.cost ?? 0) / maximum * 72));
     const comparisonHeight = maximum === 0 ? 2 : Math.max(2, Math.round((point.comparisonCost ?? 0) / maximum * 72));
     const x = 12 + index * 38;
-    return `<g><rect class="chart-comparison" x="${x}" y="${84 - comparisonHeight}" width="14" height="${comparisonHeight}" rx="2"><title>${escapeHtml(`${point.label} previous: ${formatCost(point.comparisonCost)}`)}</title></rect><rect class="chart-current" x="${x + 16}" y="${84 - currentHeight}" width="14" height="${currentHeight}" rx="2"><title>${escapeHtml(`${point.label} current: ${formatCost(point.cost, point.partial)}`)}</title></rect></g>`;
+    return `<g><rect class="chart-comparison" x="${x}" y="${84 - comparisonHeight}" width="14" height="${comparisonHeight}" rx="2"><title>${escapeHtml(`${point.label} previous: ${formatCost(point.comparisonCost)}; ${formatTokensDe(point.tokens)} tokens; ${point.sessions} ${point.sessions === 1 ? 'session' : 'sessions'}`)}</title></rect><rect class="chart-current" x="${x + 16}" y="${84 - currentHeight}" width="14" height="${currentHeight}" rx="2"><title>${escapeHtml(pointDescription(point))}</title></rect></g>`;
   }).join('');
-  const controls = report.chart.map((point) => `<button type="button" class="chart-point" data-action="filterChartPoint" data-start="${escapeHtml(point.start)}" data-end-exclusive="${escapeHtml(point.endExclusive)}" aria-describedby="chart-detail-${escapeHtml(point.key)}">${escapeHtml(point.label)}</button><span id="chart-detail-${escapeHtml(point.key)}" class="sr-only">${escapeHtml(pointDescription(point))}</span>`).join('');
+  const controls = report.chart.map((point) => `<button type="button" class="chart-point" data-action="filterChartPoint" data-start="${escapeHtml(point.start)}" data-end-exclusive="${escapeHtml(point.endExclusive)}" data-tokens="${point.tokens}" data-sessions="${point.sessions}" aria-describedby="chart-detail-${escapeHtml(point.key)}">${escapeHtml(point.label)}</button><span id="chart-detail-${escapeHtml(point.key)}" class="sr-only">${escapeHtml(pointDescription(point))}</span>`).join('');
   const description = report.chart.length === 0 ? 'No chart points are available.' : report.chart.map(pointDescription).join('. ');
-  return `<section aria-labelledby="trend-heading"><h2 id="trend-heading">Cost trend</h2><p class="chart-legend"><span class="legend-current">Current period</span><span class="legend-comparison">Previous period</span></p><svg data-testid="cost-trend-chart" viewBox="0 0 440 104" role="img" aria-label="Estimated cost trend"><desc>${escapeHtml(description)}</desc><line x1="0" y1="84" x2="440" y2="84" class="chart-axis" />${bars}</svg><div class="chart-points" aria-label="Cost trend points">${controls}</div></section>`;
+  const budgetLine = budgetAmount === undefined ? '' : `<line class="chart-budget-reference" data-budget-amount="${budgetAmount}" x1="0" y1="${84 - Math.round(budgetAmount / maximum * 72)}" x2="440" y2="${84 - Math.round(budgetAmount / maximum * 72)}"><title>${escapeHtml(`Budget reference: ${formatCost(budgetAmount)}`)}</title></line>`;
+  return `<section aria-labelledby="trend-heading"><h2 id="trend-heading">Cost trend</h2><p class="chart-legend"><span class="legend-current">Current period</span><span class="legend-comparison">Previous period</span><span class="legend-budget">Budget reference</span></p><svg data-testid="cost-trend-chart" viewBox="0 0 440 104" role="img" aria-label="Estimated cost trend"><desc>${escapeHtml(description)}</desc><line x1="0" y1="84" x2="440" y2="84" class="chart-axis" />${budgetLine}${bars}</svg><div class="chart-points" aria-label="Cost trend points">${controls}</div></section>`;
 }
 
 function driver(kind: 'session' | 'project' | 'model', value: CostCenterReport['drivers'][keyof CostCenterReport['drivers']]): string {
