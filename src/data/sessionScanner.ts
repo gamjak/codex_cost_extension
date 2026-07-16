@@ -143,9 +143,10 @@ export async function findSessionFileDescriptors(
 
   await Promise.all(Array.from({ length: Math.min(concurrency, candidates.length) }, () => metadataWorker()));
 
-  return Array.from(descriptors.values()).sort((left, right) =>
-    left.filePath.localeCompare(right.filePath)
-  );
+  return candidates.flatMap((filePath) => {
+    const descriptor = descriptors.get(filePath);
+    return descriptor === undefined ? [] : [descriptor];
+  });
 }
 
 export async function findSessionFiles(logRoots: readonly string[]): Promise<string[]> {
