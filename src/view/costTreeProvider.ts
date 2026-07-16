@@ -4,7 +4,8 @@ import { readExtensionConfig } from '../config';
 import { SessionRepository } from '../data/sessionRepository';
 import { buildCostControlReport } from '../domain/costControl';
 import { buildUsageReport } from '../domain/sessionAggregator';
-import type { BudgetStatus, CostControlReport, UsageReport, ViewScope } from '../domain/types';
+import type { BudgetStatus, CostControlReport, ParsedSession, UsageReport, ViewScope } from '../domain/types';
+import type { ExtensionConfig } from '../config';
 import { RefreshCoordinator } from '../refreshCoordinator';
 import { configureDisplay } from './costDisplay';
 import { buildCostSummaryText } from './costControlPresentation';
@@ -12,6 +13,15 @@ import { buildStatusBarEntries } from './statusBarPresentation';
 import { buildUsageTree, type TreeNodeData } from './treePresentation';
 
 const SCOPE_KEY = 'codexCost.scope';
+
+export interface CostDataSnapshot {
+  sessions: readonly ParsedSession[];
+  filesCount: number;
+  warnings: readonly string[];
+  refreshedAt: Date;
+  workspaceRoots: readonly string[];
+  configuration: ExtensionConfig;
+}
 
 interface TreeNode {
   id: string;
@@ -81,7 +91,8 @@ export class CodexCostTreeProvider implements vscode.TreeDataProvider<TreeNode> 
   private lastRefreshAt?: Date;
   private latestBudgetStatus?: BudgetStatus;
   private latestCostControl?: CostControlReport;
-  private dashboardUpdater?: (control: CostControlReport) => void;
+  private costCenterUpdater?: (snapshot: CostDataSnapshot) => void;
+  private latestCostData?: CostDataSnapshot;
   private lastRefreshSucceeded = false;
 
   readonly onDidChangeTreeData = this.onDidChangeTreeDataEmitter.event;
@@ -89,9 +100,9 @@ export class CodexCostTreeProvider implements vscode.TreeDataProvider<TreeNode> 
   constructor(private readonly context: vscode.ExtensionContext) {
     this.scope = context.workspaceState.get<ViewScope>(SCOPE_KEY) ?? readExtensionConfig().scopeDefault;
 
-    this.sessionStatusItem.command = 'codexCost.openDashboard';
-    this.workspaceStatusItem.command = 'codexCost.openDashboard';
-    this.budgetStatusItem.command = 'codexCost.openDashboard';
+    this.sessionStatusItem.command = 'codexCost.openCostCenter';
+    this.workspaceStatusItem.command = 'codexCost.openCostCenter';
+    this.budgetStatusItem.command = 'codexCost.openCostCenter';
 
     context.subscriptions.push(this.sessionStatusItem, this.workspaceStatusItem, this.budgetStatusItem, this.output);
   }
@@ -137,8 +148,12 @@ export class CodexCostTreeProvider implements vscode.TreeDataProvider<TreeNode> 
     return this.lastRefreshSucceeded ? this.latestCostControl : undefined;
   }
 
-  setDashboardUpdater(callback: (control: CostControlReport) => void): void {
-    this.dashboardUpdater = callback;
+  getLatestCostData(): CostDataSnapshot | undefined {
+    return this.latestCostData;
+  }
+
+  setCostCenterUpdater(callback: (snapshot: CostDataSnapshot) => void): void {
+    this.costCenterUpdater = callback;
   }
 
   async copySummary(): Promise<void> {
@@ -150,6 +165,11 @@ export class CodexCostTreeProvider implements vscode.TreeDataProvider<TreeNode> 
 
     await vscode.env.clipboard.writeText(buildCostSummaryText(control));
     await vscode.window.showInformationMessage('Cost summary copied to the clipboard.');
+  }
+
+  reportError(error: unknown): void {
+    const message = error instanceof Error ? error.message : String(error);
+    this.output.appendLine(`[${new Date().toISOString()}] Cost Center render failed: ${message}`);
   }
 
   private async performRefresh(): Promise<void> {
@@ -204,17 +224,26 @@ export class CodexCostTreeProvider implements vscode.TreeDataProvider<TreeNode> 
       this.updateStatusBar(workspaceReport, configuration, control);
       this.latestBudgetStatus = workspaceReport.budget;
       this.latestCostControl = control;
+      const snapshot: CostDataSnapshot = {
+        sessions: loaded.sessions,
+        filesCount: loaded.filesCount,
+        warnings: loaded.warnings,
+        refreshedAt,
+        workspaceRoots,
+        configuration
+      };
+      this.latestCostData = snapshot;
       this.lastRefreshSucceeded = true;
       this.nodes = buildUsageTree(this.scope, displayReport, {
         autoRefreshSeconds: configuration.autoRefreshSeconds,
         lastRefreshAt: this.lastRefreshAt
       }, control).map(toVscodeNode);
-      if (this.dashboardUpdater) {
+      if (this.costCenterUpdater) {
         try {
-          this.dashboardUpdater(control);
+          this.costCenterUpdater(snapshot);
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Unknown error';
-          this.output.appendLine(`[${new Date().toISOString()}] Dashboard update failed: ${message}`);
+          this.output.appendLine(`[${new Date().toISOString()}] Cost Center update failed: ${message}`);
         }
       }
     } catch (error) {

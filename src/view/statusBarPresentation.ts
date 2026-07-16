@@ -56,7 +56,7 @@ function buildSessionTooltip(session: SessionReportItem, report: UsageReport, au
           approximate: !session.hasPricing
         })}`,
     describeAutoRefresh(autoRefreshSeconds),
-    'Click to open Cost Dashboard.'
+    'Click to open Codex Cost Center.'
   ].join('\n');
 }
 
@@ -67,7 +67,7 @@ function buildEmptySessionEntry(visible: boolean, report: UsageReport, autoRefre
       'No workspace session with filtered token usage found.',
       describeFilter(report),
       describeAutoRefresh(autoRefreshSeconds),
-      'Click to open Cost Dashboard.'
+      'Click to open Codex Cost Center.'
     ].join('\n'),
     visible,
     tone: 'default'
@@ -88,7 +88,7 @@ function buildWorkspaceTooltip(report: UsageReport, autoRefreshSeconds: number):
       ? `Sessions with estimate: ${formatTokensDe(report.sessions.filter((session) => session.estimatedCost !== undefined).length)}`
       : undefined,
     describeAutoRefresh(autoRefreshSeconds),
-    'Click to open Cost Dashboard.'
+    'Click to open Codex Cost Center.'
   ];
 
   return lines.filter((line): line is string => Boolean(line)).join('\n');
@@ -117,7 +117,7 @@ export function buildStatusBarEntries(
           'No workspace usage matched the active filter.',
           describeFilter(report),
           describeAutoRefresh(options.autoRefreshSeconds),
-          'Click to open Cost Dashboard.'
+          'Click to open Codex Cost Center.'
         ].join('\n'),
         visible: options.visibility.showWorkspace,
         tone: 'default'
@@ -135,7 +135,7 @@ export function buildStatusBarEntries(
   const costControl = buildCostControlText(control);
   const budget: StatusBarEntry = {
     text: `$(dashboard) ${costControl.text}`,
-    tooltip: [costControl.tooltip, describeAutoRefresh(options.autoRefreshSeconds), 'Click to open Cost Dashboard.'].join('\n'),
+    tooltip: [costControl.tooltip, describeAutoRefresh(options.autoRefreshSeconds), 'Click to open Codex Cost Center.'].join('\n'),
     visible: options.visibility.showBudget,
     tone: costControl.tone
   };

@@ -36,7 +36,7 @@
     "onCommand:codexCost.setScopeAll",
     "onCommand:codexCost.openSettings",
     "onCommand:codexCost.openCostControl",
-    "onCommand:codexCost.openDashboard",
+    "onCommand:codexCost.openCostCenter",
     "onCommand:codexCost.configureDailyBudget",
     "onCommand:codexCost.copySummary"
   ],
@@ -85,8 +85,8 @@
         "icon": "$(dashboard)"
       },
       {
-        "command": "codexCost.openDashboard",
-        "title": "Open Cost Dashboard",
+        "command": "codexCost.openCostCenter",
+        "title": "%command.costCenter%",
         "icon": "$(dashboard)"
       },
       {
@@ -103,7 +103,7 @@
     "menus": {
       "view/title": [
         {
-          "command": "codexCost.openCostControl",
+          "command": "codexCost.openCostCenter",
           "when": "view == codexCost.usage",
           "group": "navigation@0"
         },
@@ -126,21 +126,11 @@
           "command": "codexCost.openSettings",
           "when": "view == codexCost.usage",
           "group": "navigation@3"
-        },
-        {
-          "command": "codexCost.configureDailyBudget",
-          "when": "view == codexCost.usage",
-          "group": "navigation@4"
-        },
-        {
-          "command": "codexCost.copySummary",
-          "when": "view == codexCost.usage",
-          "group": "navigation@5"
         }
       ],
       "view/item/context": [
         {
-          "command": "codexCost.openDashboard",
+          "command": "codexCost.openCostCenter",
           "when": "view == codexCost.usage && viewItem == codexCost.today",
           "group": "inline"
         },

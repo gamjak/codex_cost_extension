@@ -9,7 +9,7 @@ interface Manifest {
   main: string;
   activationEvents: string[];
   contributes: {
-    commands: Array<{ command: string }>;
+    commands: Array<{ command: string; title?: string }>;
     configuration: { properties: Record<string, { default?: unknown }> };
   };
 }
@@ -42,5 +42,9 @@ describe('VS Code manifest', () => {
     });
     expect(manifest.contributes.configuration.properties['codexCost.costCenter.compareByDefault'].default).toBe(false);
     expect(manifest.contributes.configuration.properties['codexCost.budget.notifications.thresholdSummary'].default).toBe(true);
+    expect(manifest.contributes.commands).toContainEqual(expect.objectContaining({ command: 'codexCost.openCostCenter', title: '%command.costCenter%' }));
+    expect(commands).not.toContain('codexCost.openDashboard');
+    expect(fs.readFileSync(path.resolve('package.nls.json'), 'utf8')).toContain('command.costCenter');
+    expect(fs.readFileSync(path.resolve('package.nls.de.json'), 'utf8')).toContain('command.costCenter');
   });
 });

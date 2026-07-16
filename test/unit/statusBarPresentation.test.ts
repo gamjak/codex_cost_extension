@@ -128,11 +128,11 @@ describe('buildStatusBarEntries', () => {
     expect(entries.budget.text).toBe('$(dashboard) Today 0,50 $/1,00 $ · On track');
     expect(entries.budget.tone).toBe('default');
     expect(entries.session.tooltip).toContain('Filter start: 01.06.2026');
-    expect(entries.session.tooltip).toContain('Click to open Cost Dashboard.');
+    expect(entries.session.tooltip).toContain('Click to open Codex Cost Center.');
     expect(entries.workspace.tooltip).toContain('Auto-refresh: every 60s');
-    expect(entries.workspace.tooltip).toContain('Click to open Cost Dashboard.');
+    expect(entries.workspace.tooltip).toContain('Click to open Codex Cost Center.');
     expect(entries.budget.tooltip).toContain('Projected end of day: 1,00 $');
-    expect(entries.budget.tooltip).toContain('Click to open Cost Dashboard.');
+    expect(entries.budget.tooltip).toContain('Click to open Codex Cost Center.');
     expect(entries.session.tooltip).not.toContain('Click to refresh now.');
     expect(entries.workspace.tooltip).not.toContain('Click to refresh now.');
     expect(entries.budget.tooltip).not.toContain('Click to refresh now.');
