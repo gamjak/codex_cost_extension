@@ -91,4 +91,37 @@ describe('buildCostCenterReport', () => {
     const report = buildReport({ filters: { scope: 'workspace', range: { kind: '7d', compare: false }, section: 'overview' } });
     expect(report.sessions.every((row) => row.projectKey === 'c:\\repo\\one')).toBe(true);
   });
+
+  it('reports comparison metrics for summary and matching session and model drivers', () => {
+    const report = buildReport({
+      sessions: [{
+        sessionId: 'comparable', filePath: 'comparable.jsonl', cwd: 'C:\\repo\\one', updatedAt: '2026-07-16T10:00:00.000Z', usageHistory: [
+          { timestamp: '2026-07-15T10:00:00.000Z', cwd: 'C:\\repo\\one', model: 'gpt-5.4', tokens: { inputTokens: 1_000, cachedInputTokens: 0, outputTokens: 0, totalTokens: 1_000 } },
+          { timestamp: '2026-07-16T10:00:00.000Z', cwd: 'C:\\repo\\one', model: 'gpt-5.4', tokens: { inputTokens: 3_000, cachedInputTokens: 0, outputTokens: 0, totalTokens: 3_000 } }
+        ]
+      }],
+      filters: { scope: 'all', range: { kind: 'today', compare: true }, section: 'overview' }, now: new Date('2026-07-16T12:00:00.000Z')
+    });
+    expect(report.summary.cost.comparisonPercent).toBeTypeOf('number');
+    expect(report.drivers.session?.comparisonPercent).toBeTypeOf('number');
+    expect(report.drivers.model?.comparisonPercent).toBeTypeOf('number');
+  });
+
+  it('applies a selected chart point to the matching comparison point', () => {
+    const report = buildReport({
+      filters: {
+        scope: 'all', range: { kind: 'today', compare: true }, section: 'overview',
+        pointStart: '2026-07-16T00:00:00.000Z', pointEndExclusive: '2026-07-17T00:00:00.000Z'
+      }, now: new Date('2026-07-16T12:00:00.000Z')
+    });
+    expect(report.summary.cost.value).toBeGreaterThan(0);
+    expect(report.summary.cost.comparisonPercent).toBeTypeOf('number');
+  });
+
+  it('builds each session timeline from that session only', () => {
+    const report = buildReport();
+    const row = report.sessions.find((session) => session.sessionId === 'two-main');
+    expect(row?.timeline.some((point) => point.tokens > 0 && point.sessions === 1)).toBe(true);
+    expect(row?.timeline.reduce((total, point) => total + point.tokens, 0)).toBe(750);
+  });
 });

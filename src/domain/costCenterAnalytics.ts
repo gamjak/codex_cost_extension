@@ -64,7 +64,7 @@ function labelRange(filters: CostCenterFilters): string {
   return filters.range.kind === 'today' ? 'Today' : filters.range.kind === '7d' ? 'Last 7 days' : 'Last 30 days';
 }
 
-function allowedEntries(input: BuildCostCenterReportInput, interval: DateInterval, applyPointFilter = true): FactDelta[] {
+function allowedEntries(input: BuildCostCenterReportInput, interval: DateInterval, pointInterval?: DateInterval): FactDelta[] {
   const sources = new Set((input.sessionSources ?? []).map((source) => source.toLowerCase()));
   return buildSessionFacts(input.sessions, input.workspaceRoots).flatMap((fact) => {
     if (input.excludedProjects.has(fact.projectKey) ||
@@ -74,8 +74,7 @@ function allowedEntries(input: BuildCostCenterReportInput, interval: DateInterva
     return fact.deltas
       .filter((delta) => inInterval(delta.timestamp, interval) &&
         (!input.filters.model || delta.model === input.filters.model) &&
-        (!applyPointFilter || !input.filters.pointStart || !input.filters.pointEndExclusive ||
-          (Date.parse(delta.timestamp) >= Date.parse(input.filters.pointStart) && Date.parse(delta.timestamp) < Date.parse(input.filters.pointEndExclusive))))
+        (!pointInterval || inInterval(delta.timestamp, pointInterval)))
       .map((delta) => ({ fact, delta: pricedDelta(delta, input.pricingByModel) }));
   });
 }
@@ -95,23 +94,22 @@ function buildBuckets(interval: DateInterval, bucket: 'hour' | 'day'): DateInter
 
 function buildChart(range: ReturnType<typeof resolveCostCenterRange>, current: readonly FactDelta[], comparison: readonly FactDelta[]): CostCenterChartPoint[] {
   const buckets = buildBuckets(range.current, range.bucket);
+  const comparisonBuckets = range.comparison ? buildBuckets(range.comparison, range.bucket) : [];
   return buckets.map((bucket) => {
-    const comparisonBucket = range.comparison ? {
-      start: new Date(range.comparison.start.getTime() + (bucket.start.getTime() - range.current.start.getTime())),
-      endExclusive: new Date(range.comparison.start.getTime() + (bucket.endExclusive.getTime() - range.current.start.getTime()))
-    } : undefined;
+    const comparisonBucket = comparisonBuckets[buckets.indexOf(bucket)];
     const currentAggregate = aggregate(current.filter((entry) => inInterval(entry.delta.timestamp, bucket)));
     const comparisonAggregate = comparisonBucket ? aggregate(comparison.filter((entry) => inInterval(entry.delta.timestamp, comparisonBucket))) : undefined;
     return { key: bucket.start.toISOString(), label: range.bucket === 'hour' ? `${bucket.start.getHours()}:00` : `${bucket.start.getMonth() + 1}/${bucket.start.getDate()}`, start: bucket.start.toISOString(), endExclusive: bucket.endExclusive.toISOString(), cost: currentAggregate.cost, comparisonCost: comparisonAggregate?.cost, tokens: currentAggregate.tokens.totalTokens, sessions: currentAggregate.sessions.size, partial: currentAggregate.partial };
   });
 }
 
-function sessionRows(entries: readonly FactDelta[], chart: CostCenterChartPoint[], total: number | undefined): CostCenterSessionRow[] {
+function sessionRows(entries: readonly FactDelta[], comparison: readonly FactDelta[], range: ReturnType<typeof resolveCostCenterRange>, total: number | undefined): CostCenterSessionRow[] {
   const groups = new Map<string, FactDelta[]>();
   entries.forEach((entry) => groups.set(entry.fact.key, [...(groups.get(entry.fact.key) ?? []), entry]));
   return Array.from(groups.values()).map((group) => {
     const value = aggregate(group); const fact = group[0].fact;
-    return { key: fact.key, sessionId: fact.sessionId, label: fact.label, projectKey: fact.projectKey, projectLabel: fact.projectLabel, projectPath: fact.projectPath, source: fact.source, startedAt: fact.startedAt, updatedAt: fact.updatedAt, durationMs: fact.durationMs, models: Array.from(new Set(group.flatMap((entry) => entry.delta.model ? [entry.delta.model] : []))), tokens: value.tokens, estimatedCost: value.cost, sharePercent: total && value.cost !== undefined ? value.cost / total * 100 : undefined, partial: value.partial, timeline: chart };
+    const comparisonForSession = comparison.filter((entry) => entry.fact.key === fact.key);
+    return { key: fact.key, sessionId: fact.sessionId, label: fact.label, projectKey: fact.projectKey, projectLabel: fact.projectLabel, projectPath: fact.projectPath, source: fact.source, startedAt: fact.startedAt, updatedAt: fact.updatedAt, durationMs: fact.durationMs, models: Array.from(new Set(group.flatMap((entry) => entry.delta.model ? [entry.delta.model] : []))), tokens: value.tokens, estimatedCost: value.cost, sharePercent: total && value.cost !== undefined ? value.cost / total * 100 : undefined, partial: value.partial, timeline: buildChart(range, group, comparisonForSession) };
   }).sort((left, right) => (right.estimatedCost ?? -1) - (left.estimatedCost ?? -1) || left.label.localeCompare(right.label));
 }
 
@@ -138,11 +136,18 @@ function budget(input: BuildCostCenterReportInput, summary: Aggregate, range: Re
 }
 
 export function buildCostCenterReport(input: BuildCostCenterReportInput): CostCenterReport {
-  const range = resolveCostCenterRange(input.filters.range, input.now); const current = allowedEntries(input, range.current); const comparison = range.comparison ? allowedEntries(input, range.comparison, false) : [];
-  const summaryAggregate = aggregate(current); const chart = buildChart(range, current, comparison); const sessions = sessionRows(current, chart, summaryAggregate.cost); const projects = projectRows(current, comparison, input); const models = modelRows(current, summaryAggregate.cost, input);
+  const range = resolveCostCenterRange(input.filters.range, input.now);
+  const selectedPoint = input.filters.pointStart && input.filters.pointEndExclusive ? { start: new Date(input.filters.pointStart), endExclusive: new Date(input.filters.pointEndExclusive) } : undefined;
+  const currentBuckets = buildBuckets(range.current, range.bucket);
+  const selectedPointIndex = selectedPoint ? currentBuckets.findIndex((bucket) => bucket.start.getTime() === selectedPoint.start.getTime() && bucket.endExclusive.getTime() === selectedPoint.endExclusive.getTime()) : -1;
+  const comparisonPoint = range.comparison && selectedPointIndex >= 0 ? buildBuckets(range.comparison, range.bucket)[selectedPointIndex] : undefined;
+  const current = allowedEntries(input, range.current, selectedPoint); const comparison = range.comparison ? allowedEntries(input, range.comparison, comparisonPoint) : [];
+  const summaryAggregate = aggregate(current); const comparisonAggregate = aggregate(comparison); const chart = buildChart(range, current, comparison); const sessions = sessionRows(current, comparison, range, summaryAggregate.cost); const projects = projectRows(current, comparison, input); const models = modelRows(current, summaryAggregate.cost, input);
   const hasDrillDown = Boolean(input.filters.projectKey || input.filters.model || input.filters.pointStart || input.filters.pointEndExclusive);
   const emptyState = input.sessions.length === 0 ? { kind: 'no-logs' as const, message: 'No session logs found.', action: 'open-settings' as const } : current.length === 0 ? hasDrillDown ? { kind: 'filtered-out' as const, message: 'No usage matches these filters.', action: 'clear-filters' as const } : { kind: 'no-period-data' as const, message: 'No usage in this period.', action: 'clear-filters' as const } : undefined;
   const driver = <T extends { estimatedCost?: number; label?: string; model?: string; key?: string; sharePercent?: number; comparisonPercent?: number }>(rows: T[]) => rows.find((row) => row.estimatedCost !== undefined);
   const sessionDriver = driver(sessions); const projectDriver = driver(projects); const modelDriver = driver(models);
-  return { filters: input.filters, rangeLabel: labelRange(input.filters), summary: { cost: { value: summaryAggregate.cost, partial: summaryAggregate.partial }, totalTokens: summaryAggregate.tokens.totalTokens, activeDays: summaryAggregate.days.size, averageCostPerActiveDay: summaryAggregate.cost !== undefined && summaryAggregate.days.size ? summaryAggregate.cost / summaryAggregate.days.size : undefined, sessionCount: summaryAggregate.sessions.size }, budget: budget(input, summaryAggregate, range), chart, drivers: { session: sessionDriver && { key: sessionDriver.key, label: sessionDriver.label, cost: sessionDriver.estimatedCost, sharePercent: sessionDriver.sharePercent }, project: projectDriver && { key: projectDriver.key, label: projectDriver.label, cost: projectDriver.estimatedCost, sharePercent: undefined, comparisonPercent: projectDriver.comparisonPercent }, model: modelDriver && { key: modelDriver.model, label: modelDriver.model, cost: modelDriver.estimatedCost, sharePercent: modelDriver.sharePercent } }, sessions, projects, models, warnings: [...input.repositoryWarnings].sort((a, b) => a.localeCompare(b)), emptyState };
+  const sessionComparison = sessionDriver ? aggregate(comparison.filter((entry) => entry.fact.key === sessionDriver.key)).cost : undefined;
+  const modelComparison = modelDriver ? aggregate(comparison.filter((entry) => entry.delta.model === modelDriver.model)).cost : undefined;
+  return { filters: input.filters, rangeLabel: labelRange(input.filters), summary: { cost: { value: summaryAggregate.cost, partial: summaryAggregate.partial, comparisonPercent: percentageChange(summaryAggregate.cost, comparisonAggregate.cost) }, totalTokens: summaryAggregate.tokens.totalTokens, activeDays: summaryAggregate.days.size, averageCostPerActiveDay: summaryAggregate.cost !== undefined && summaryAggregate.days.size ? summaryAggregate.cost / summaryAggregate.days.size : undefined, sessionCount: summaryAggregate.sessions.size }, budget: budget(input, summaryAggregate, range), chart, drivers: { session: sessionDriver && { key: sessionDriver.key, label: sessionDriver.label, cost: sessionDriver.estimatedCost, sharePercent: sessionDriver.sharePercent, comparisonPercent: percentageChange(sessionDriver.estimatedCost, sessionComparison) }, project: projectDriver && { key: projectDriver.key, label: projectDriver.label, cost: projectDriver.estimatedCost, sharePercent: undefined, comparisonPercent: projectDriver.comparisonPercent }, model: modelDriver && { key: modelDriver.model, label: modelDriver.model, cost: modelDriver.estimatedCost, sharePercent: modelDriver.sharePercent, comparisonPercent: percentageChange(modelDriver.estimatedCost, modelComparison) } }, sessions, projects, models, warnings: [...input.repositoryWarnings].sort((a, b) => a.localeCompare(b)), emptyState };
 }
