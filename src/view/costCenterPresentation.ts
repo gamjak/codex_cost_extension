@@ -4,16 +4,10 @@ import type { CostCenterUiState } from '../domain/costCenterState';
 
 import { buildCostCenterClientScript } from './costCenterClient';
 import { buildOverview } from './costCenterOverviewPresentation';
+import { buildCostCenterSettings, type LogRootDiagnostic } from './costCenterSettingsPresentation';
 import { buildModelsTable, buildProjectsTable, buildSessionsTable } from './costCenterTablePresentation';
 
-export interface LogRootDiagnostic {
-  root: string;
-  status: 'ok' | 'missing' | 'unreadable';
-  filesCount: number;
-  sessionsCount: number;
-  latestActivity?: string;
-  warnings: string[];
-}
+export type { LogRootDiagnostic } from './costCenterSettingsPresentation';
 
 export interface CostCenterSettingsView {
   open: boolean;
@@ -60,7 +54,8 @@ function panels(model: CostCenterViewModel): string {
     ['projects', buildProjectsTable(model.report, model.uiState)],
     ['models', buildModelsTable(model.report, model.uiState)]
   ];
-  return sections.map(([section, content]) => `<section id="panel-${section}" role="tabpanel" aria-labelledby="tab-${section}"${section === selected ? '' : ' hidden'}>${content}</section>`).join('');
+  const analysisPanels = sections.map(([section, content]) => `<section id="panel-${section}" role="tabpanel" aria-labelledby="tab-${section}"${section === selected ? '' : ' hidden'}>${content}</section>`).join('');
+  return analysisPanels + (model.settings?.open ? buildCostCenterSettings(model.settings, escapeHtml) : '');
 }
 
 function styles(): string {

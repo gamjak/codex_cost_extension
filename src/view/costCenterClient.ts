@@ -2,6 +2,7 @@ export function buildCostCenterClientScript(): string {
   return `(() => {
   const vscode = acquireVsCodeApi();
   const post = (message) => vscode.postMessage(message);
+  const settingFieldKeys = new Set(['budget.dayAmount', 'budget.weekAmount', 'budget.monthAmount', 'budget.warningPercent', 'display.showSession', 'display.showWorkspace', 'display.showBudget', 'display.budgetPeriod', 'display.defaultRange', 'display.compareByDefault', 'dataSources.logRoots', 'dataSources.include', 'notifications.enabled', 'notifications.everyAmount', 'notifications.thresholdSummary']);
   const rangeValue = () => {
     const range = document.querySelector('[data-control="range"]');
     const compare = document.querySelector('[data-control="compare"]');
@@ -16,14 +17,23 @@ export function buildCostCenterClientScript(): string {
     if (type === 'setScope') return post({ type: 'setScope', value: target.value });
     if (type === 'setRange') return post({ type: 'setRange', value: rangeValue() });
     if (type === 'setSection') return post({ type: 'setSection', value: target.dataset.value });
+    if (type === 'setSettingsGroup') return post({ type: 'setSettingsGroup', value: target.dataset.value });
     if (type === 'clearFilter') return post({ type: 'clearFilter', value: target.dataset.value });
     if (type === 'filterChartPoint') return post({ type: 'filterChartPoint', pointStart: target.dataset.start, pointEndExclusive: target.dataset.endExclusive });
     if (type === 'setSort') return post({ type: 'setSort', key: target.dataset.key, value: target.dataset.value });
     if (type === 'setSearch') return post({ type: 'setSearch', value: target.value });
     if (type === 'drillProject' || type === 'drillModel' || type === 'toggleSession' || type === 'toggleProjectPin' || type === 'excludeProject') return post({ type, key: target.dataset.key });
     if (type === 'updateSettingField') {
-      const value = target instanceof HTMLInputElement && target.type === 'checkbox' ? target.checked : target.value;
-      return post({ type, key: target.dataset.key, value });
+      const key = target.dataset.key;
+      if (!settingFieldKeys.has(key)) return;
+      const value = target instanceof HTMLInputElement && target.type === 'checkbox'
+        ? target.checked
+        : target.dataset.valueType === 'number'
+          ? Number(target.value)
+          : target.dataset.valueType === 'string-array'
+            ? target.value.split(/\\r?\\n/).map((item) => item.trim()).filter(Boolean)
+            : target.value;
+      return post({ type: 'updateSettingField', key, value });
     }
     post({ type });
   };
@@ -36,6 +46,14 @@ export function buildCostCenterClientScript(): string {
     const target = event.target;
     if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement)) return;
     postAction(target);
+  });
+  document.addEventListener('input', (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement) || target.dataset.valueType !== 'number' || !target.dataset.key?.startsWith('budget.')) return;
+    const preview = document.querySelector('[data-budget-preview]');
+    if (!preview) return;
+    const amount = (key) => Number(document.querySelector('[data-key="' + key + '"]')?.value || 0).toFixed(2);
+    preview.textContent = 'Daily budget preview: $' + amount('budget.dayAmount') + ' · Weekly: $' + amount('budget.weekAmount') + ' · Monthly: $' + amount('budget.monthAmount');
   });
   document.addEventListener('keydown', (event) => {
     if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;

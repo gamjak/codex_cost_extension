@@ -158,7 +158,65 @@ describe('buildCostCenterHtml', () => {
 
     expect(emptyHtml).toContain('No sessions match the active filters.');
   });
+
+  it('renders guided budget settings with accessible validation and actions', () => {
+    const model = viewModel();
+    model.settings = settingsView();
+    const html = buildCostCenterHtml(model, 'safe-nonce');
+
+    expect(html).toContain('<form');
+    expect(html).toContain('data-settings-group="budget"');
+    expect(html).toContain('data-action="saveSettings"');
+    expect(html).toContain('data-action="discardSettings"');
+    expect(html).toContain('data-action="resetSettingsGroup"');
+    expect(html).toContain('aria-invalid="true"');
+    expect(html).toContain('aria-describedby="settings-budget-dayAmount-error"');
+    expect(html).toContain('Enter zero or a positive USD amount.');
+    expect(html).toContain('aria-live="polite"');
+    expect(html).toContain('Daily budget preview: $-1.00');
+  });
+
+  it('renders all guided groups and source diagnostics without arbitrary config or pricing fields', () => {
+    const model = viewModel();
+    model.settings = { ...settingsView(), group: 'dataSources' };
+    const html = buildCostCenterHtml(model, 'safe-nonce');
+
+    for (const group of ['budget', 'display', 'dataSources', 'notifications']) {
+      expect(html).toContain(`data-settings-group="${group}"`);
+    }
+    expect(html).toContain('data-action="checkData"');
+    expect(html).toContain('data-action="testNotification"');
+    expect(html).toContain('data-action="openAdvancedSettings"');
+    expect(html).toContain('Missing');
+    expect(html).toContain('No JSONL files found.');
+    expect(html).not.toContain('pricing.models');
+    expect(html).not.toContain('data-action="updateConfig"');
+  });
+
+  it('serializes only allowlisted setting field actions from controls', () => {
+    const script = buildCostCenterClientScript();
+
+    expect(script).toContain("const settingFieldKeys = new Set(");
+    expect(script).toContain("post({ type: 'updateSettingField', key, value })");
+    expect(script).not.toContain("post({ type: 'updateSettingField', key: target.dataset.key, value })");
+  });
 });
+
+function settingsView(): NonNullable<CostCenterViewModel['settings']> {
+  return {
+    open: true,
+    group: 'budget',
+    draft: {
+      budget: { dayAmount: -1, weekAmount: 50, monthAmount: 200, warningPercent: 80 },
+      display: { showSession: true, showWorkspace: true, showBudget: true, budgetPeriod: 'month', defaultRange: '7d', compareByDefault: false },
+      dataSources: { logRoots: ['C:\\missing'], include: ['cli'] },
+      notifications: { enabled: true, everyAmount: 10, thresholdSummary: true }
+    },
+    errors: { 'budget.dayAmount': 'Enter zero or a positive USD amount.' },
+    dirty: true,
+    diagnostics: [{ root: 'C:\\missing', status: 'missing', filesCount: 0, sessionsCount: 0, warnings: ['No JSONL files found.'] }]
+  };
+}
 
 function analysisViewModel(): CostCenterViewModel {
   const model = viewModel();
