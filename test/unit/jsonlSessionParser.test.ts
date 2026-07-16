@@ -47,6 +47,7 @@ describe('parseSessionFile', () => {
       }
     ]);
     expect(session?.updatedAt).toBe('2026-06-01T08:04:00.000Z');
+    expect(session?.startedAt).toBe('2026-06-01T08:00:00.000Z');
   });
 
   it('ignores malformed lines and still returns valid session data', async () => {

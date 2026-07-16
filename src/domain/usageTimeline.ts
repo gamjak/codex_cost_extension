@@ -1,10 +1,13 @@
 import type { ParsedSession, SessionUsageSnapshot, TokenUsageSnapshot } from './types';
+import { normalizeSessionSource, sessionKey } from './sessionFacts';
 
 export interface SessionUsageDelta {
+  sessionKey: string;
   sessionId: string;
   timestamp: string;
   cwd?: string;
   model?: string;
+  source: string;
   tokens: TokenUsageSnapshot;
 }
 
@@ -80,10 +83,12 @@ export function buildSessionUsageDeltas(session: ParsedSession): SessionUsageDel
     }
 
     deltas.push({
+      sessionKey: sessionKey(session),
       sessionId: session.sessionId,
       timestamp: entry.timestamp,
       cwd: entry.cwd ?? session.cwd,
       model: entry.model ?? session.model,
+      source: normalizeSessionSource(session),
       tokens
     });
   }

@@ -94,8 +94,13 @@ export async function parseSessionFileWithDiagnostics(filePath: string): Promise
     if (timestamp && !hasValidTimestamp) {
       diagnostics.invalidTimestamps += 1;
     }
-    if (timestamp && hasValidTimestamp && timestamp > session.updatedAt) {
-      session.updatedAt = timestamp;
+    if (timestamp && hasValidTimestamp) {
+      if (!session.startedAt || timestamp < session.startedAt) {
+        session.startedAt = timestamp;
+      }
+      if (timestamp > session.updatedAt) {
+        session.updatedAt = timestamp;
+      }
     }
 
     const type = asString(parsed.type);
