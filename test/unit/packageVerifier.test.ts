@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import * as fs from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 
@@ -70,6 +71,24 @@ function createEmptyZip(entries: string[]) {
 }
 
 describe('package verifier', () => {
+  it('exposes the local refresh benchmark without packaging benchmark artifacts', async () => {
+    const manifest = JSON.parse(await fs.readFile(path.resolve('package.json'), 'utf8')) as {
+      scripts?: Record<string, string>;
+    };
+    const listing = spawnSync(process.execPath, [path.resolve('node_modules/@vscode/vsce/vsce'), 'ls'], {
+      cwd: path.resolve('.'),
+      encoding: 'utf8'
+    });
+    const includedFiles = listing.stdout.split(/\r?\n/u).filter(Boolean);
+
+    expect(listing.status).toBe(0);
+    expect(manifest.scripts?.['benchmark:refresh']).toBe(
+      'vitest bench --run test/performance/sessionRepository.bench.ts'
+    );
+    expect(includedFiles.some((file) => file.startsWith('test/performance/'))).toBe(false);
+    expect(includedFiles.some((file) => file.includes('benchmark-data'))).toBe(false);
+  });
+
   it('accepts a package containing every required release entry', () => {
     const result = verifyPackage(requiredPackagePaths);
 
