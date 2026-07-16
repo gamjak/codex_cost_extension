@@ -91,7 +91,7 @@ export function resolveModelPricing(model: string | undefined, pricingByModel: P
   return matchingFamily ? pricingByModel[matchingFamily] : undefined;
 }
 
-function estimateCost(snapshot: TokenUsageSnapshot, pricing: ModelPricing | undefined): number | undefined {
+export function estimateTokenCost(snapshot: TokenUsageSnapshot, pricing: ModelPricing | undefined): number | undefined {
   if (!pricing) {
     return undefined;
   }
@@ -109,7 +109,7 @@ function updateCostAccumulator(
   pricing: ModelPricing | undefined,
   hasKnownModel: boolean
 ): void {
-  const deltaCost = estimateCost(tokens, pricing);
+  const deltaCost = estimateTokenCost(tokens, pricing);
 
   if (deltaCost !== undefined) {
     accumulator.estimatedCost = (accumulator.estimatedCost ?? 0) + deltaCost;
@@ -322,7 +322,7 @@ export function buildUsageReport(
       }
 
       if (matchesBudgetWindow) {
-        const deltaCost = estimateCost(delta.tokens, pricing);
+        const deltaCost = estimateTokenCost(delta.tokens, pricing);
 
         if (deltaCost !== undefined) {
           budgetSpentCost += deltaCost;
