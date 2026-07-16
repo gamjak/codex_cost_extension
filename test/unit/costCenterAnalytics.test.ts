@@ -109,13 +109,20 @@ describe('buildCostCenterReport', () => {
 
   it('applies an exact hourly chart point to the matching comparison hour', () => {
     const report = buildReport({
+      sessions: [...sessions, {
+        sessionId: 'prior-hour-decoy', filePath: 'prior-hour-decoy.jsonl', cwd: 'C:\\repo\\one', updatedAt: '2026-07-15T09:00:00.000Z', usageHistory: [
+          { timestamp: '2026-07-15T09:00:00.000Z', cwd: 'C:\\repo\\one', model: 'gpt-5.4', tokens: { inputTokens: 9_000, cachedInputTokens: 0, outputTokens: 0, totalTokens: 9_000 } }
+        ]
+      }],
       filters: {
         scope: 'all', range: { kind: 'today', compare: true }, section: 'overview',
         pointStart: '2026-07-16T10:00:00.000Z', pointEndExclusive: '2026-07-16T11:00:00.000Z'
       }, now: new Date('2026-07-16T12:00:00.000Z')
     });
     expect(report.summary.totalTokens).toBe(1_500);
-    expect(report.summary.cost.comparisonPercent).toBeTypeOf('number');
+    expect(report.summary.cost.value).toBeCloseTo(0.00382, 8);
+    expect(report.summary.cost.comparisonPercent).toBeCloseTo(-80, 8);
+    expect(report.chart.find((point) => point.start === '2026-07-16T10:00:00.000Z')?.comparisonCost).toBeCloseTo(0.0191, 8);
   });
 
   it('builds each session timeline from that session only', () => {
