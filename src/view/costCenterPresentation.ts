@@ -48,12 +48,18 @@ function filters(report: CostCenterReport): string {
 
 function tabs(section: CostCenterReport['filters']['section']): string {
   const sections: Array<[CostCenterReport['filters']['section'], string]> = [['overview', 'Overview'], ['sessions', 'Sessions'], ['projects', 'Projects'], ['models', 'Models']];
-  return `<div role="tablist" aria-label="Cost Center sections">${sections.map(([key, label]) => `<button type="button" role="tab" id="tab-${key}" aria-selected="${key === section}" aria-controls="panel-${key}" data-action="setSection" data-value="${key}">${label}</button>`).join('')}</div>`;
+  return `<div role="tablist" aria-label="Cost Center sections">${sections.map(([key, label]) => `<button type="button" role="tab" tabindex="${key === section ? '0' : '-1'}" id="tab-${key}" aria-selected="${key === section}" aria-controls="panel-${key}" data-action="setSection" data-value="${key}">${label}</button>`).join('')}</div>`;
 }
 
-function selectedPanel(model: CostCenterViewModel): string {
-  if (model.report.filters.section !== 'overview') return `<section id="panel-${model.report.filters.section}" role="tabpanel" aria-labelledby="tab-${model.report.filters.section}"><p>Analysis table loading.</p></section>`;
-  return `<section id="panel-overview" role="tabpanel" aria-labelledby="tab-overview">${buildOverview(model.report)}</section>`;
+function panels(model: CostCenterViewModel): string {
+  const selected = model.report.filters.section;
+  const sections: Array<[CostCenterReport['filters']['section'], string]> = [
+    ['overview', buildOverview(model.report)],
+    ['sessions', '<p>Sessions analysis is loading.</p>'],
+    ['projects', '<p>Projects analysis is loading.</p>'],
+    ['models', '<p>Models analysis is loading.</p>']
+  ];
+  return sections.map(([section, content]) => `<section id="panel-${section}" role="tabpanel" aria-labelledby="tab-${section}"${section === selected ? '' : ' hidden'}>${content}</section>`).join('');
 }
 
 function styles(): string {
@@ -65,5 +71,5 @@ export function buildCostCenterHtml(model: CostCenterViewModel, nonce: string): 
   const range = report.filters.range;
   const custom = range.kind === 'custom' ? range : undefined;
   const safeNonce = escapeHtml(nonce);
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; script-src 'nonce-${safeNonce}'"><title>Codex Cost Center</title><style>${styles()}</style></head><body><main><header><h1>Codex Cost Center</h1><p class="lede">Local estimated usage cost. Prices may differ from billed usage.</p></header><div class="controls" aria-label="Cost Center controls"><label>Scope <select data-action="setScope"><option value="workspace"${report.filters.scope === 'workspace' ? ' selected' : ''}>Workspace</option><option value="all"${report.filters.scope === 'all' ? ' selected' : ''}>All sessions</option></select></label><label>Range <select data-action="setRange" data-control="range">${option('today', 'Today', range.kind === 'today')}${option('7d', 'Last 7 days', range.kind === '7d')}${option('30d', 'Last 30 days', range.kind === '30d')}${option('custom', 'Custom range', range.kind === 'custom')}</select></label><label>Compare <input type="checkbox" data-action="setRange" data-control="compare"${range.compare ? ' checked' : ''}></label><label>Start <input type="text" data-action="setRange" data-control="start-date" value="${escapeHtml(custom?.startDate ?? '')}"></label><label>End <input type="text" data-action="setRange" data-control="end-date" value="${escapeHtml(custom?.endDate ?? '')}"></label><button type="button" data-action="refresh">Refresh</button><button type="button" data-action="openSettings">Settings</button></div>${filters(report)}${tabs(report.filters.section)}${selectedPanel(model)}</main><script nonce="${safeNonce}">${buildCostCenterClientScript()}</script></body></html>`;
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; script-src 'nonce-${safeNonce}'"><title>Codex Cost Center</title><style>${styles()}</style></head><body><main><header><h1>Codex Cost Center</h1><p class="lede">Local estimated usage cost. Prices may differ from billed usage.</p></header><div class="controls" aria-label="Cost Center controls"><label>Scope <select data-action="setScope"><option value="workspace"${report.filters.scope === 'workspace' ? ' selected' : ''}>Workspace</option><option value="all"${report.filters.scope === 'all' ? ' selected' : ''}>All sessions</option></select></label><label>Range <select data-action="setRange" data-control="range">${option('today', 'Today', range.kind === 'today')}${option('7d', 'Last 7 days', range.kind === '7d')}${option('30d', 'Last 30 days', range.kind === '30d')}${option('custom', 'Custom range', range.kind === 'custom')}</select></label><label>Compare <input type="checkbox" data-action="setRange" data-control="compare"${range.compare ? ' checked' : ''}></label><label>Start <input type="text" data-action="setRange" data-control="start-date" value="${escapeHtml(custom?.startDate ?? '')}"></label><label>End <input type="text" data-action="setRange" data-control="end-date" value="${escapeHtml(custom?.endDate ?? '')}"></label><button type="button" data-action="refresh">Refresh</button><button type="button" data-action="openSettings">Settings</button></div>${filters(report)}${tabs(report.filters.section)}${panels(model)}</main><script nonce="${safeNonce}">${buildCostCenterClientScript()}</script></body></html>`;
 }
