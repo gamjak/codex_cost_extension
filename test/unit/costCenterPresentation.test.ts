@@ -74,6 +74,8 @@ describe('buildCostCenterHtml', () => {
     expect(script).toContain("post({ type: 'setSection', value: target.dataset.value })");
     expect(script).toContain("post({ type: 'clearFilter', value: target.dataset.value })");
     expect(script).toContain("post({ type: 'filterChartPoint', pointStart: target.dataset.start, pointEndExclusive: target.dataset.endExclusive })");
+    expect(script).toContain("post({ type: 'setSort', key: target.dataset.key, value: target.dataset.value })");
+    expect(script).toContain("post({ type: 'setSearch', value: target.value })");
     expect(script).toContain("event.key !== 'ArrowRight' && event.key !== 'ArrowLeft'");
   });
 
@@ -114,7 +116,60 @@ describe('buildCostCenterHtml', () => {
     expect(html).toContain('.legend-comparison::before');
     expect(html).toContain('.sr-only { position: absolute; width: 1px; height: 1px;');
   });
+
+  it('renders accessible analysis tables and host action metadata', () => {
+    const model = analysisViewModel();
+
+    model.report.filters.section = 'sessions';
+    const sessionHtml = buildCostCenterHtml(model, 'safe-nonce');
+    model.report.filters.section = 'projects';
+    const projectHtml = buildCostCenterHtml(model, 'safe-nonce');
+    model.report.filters.section = 'models';
+    const modelHtml = buildCostCenterHtml(model, 'safe-nonce');
+
+    expect(sessionHtml).toContain('<th scope="col"');
+    expect(sessionHtml).toContain('data-action="toggleSession"');
+    expect(projectHtml).toContain('data-action="drillProject"');
+    expect(projectHtml).toContain('data-action="toggleProjectPin"');
+    expect(projectHtml).toContain('data-action="excludeProject"');
+    expect(modelHtml).toContain('data-action="drillModel"');
+    expect(modelHtml).toContain('data-action="openAdvancedPricing"');
+    expect(modelHtml).toContain('Bundled price');
+  });
+
+  it('escapes table labels and paths and keeps expanded details private and textual', () => {
+    const model = analysisViewModel();
+    model.uiState.expandedSessionKey = 'session-1';
+    const html = buildCostCenterHtml(model, 'safe-nonce');
+
+    expect(html).toContain('C:\\work\\&lt;private&gt;');
+    expect(html).not.toContain('C:\\work\\<private>');
+    expect(html).toContain('Partial estimate: some usage has no price.');
+    expect(html).toContain('Token composition');
+    expect(html).not.toContain('prompt');
+    expect(html).not.toContain('response');
+  });
+
+  it('renders the sessions empty state when search excludes every row', () => {
+    const model = analysisViewModel();
+    model.uiState.search = 'not-present';
+
+    const emptyHtml = buildCostCenterHtml(model, 'safe-nonce');
+
+    expect(emptyHtml).toContain('No sessions match the active filters.');
+  });
 });
+
+function analysisViewModel(): CostCenterViewModel {
+  const model = viewModel();
+  model.report.sessions = [{ key: 'session-1', sessionId: 'session-1', label: '<Session>', projectKey: 'project-1', projectLabel: '<Project>', projectPath: 'C:\\work\\<private>', source: '<cli>', startedAt: '2026-07-16T00:00:00.000Z', updatedAt: '2026-07-16T01:00:00.000Z', durationMs: 1, models: ['<model>'], tokens: { inputTokens: 10, cachedInputTokens: 2, outputTokens: 3, totalTokens: 15 }, estimatedCost: 1, sharePercent: 50, partial: true, timeline: [{ key: 'point', label: '<point>', start: '2026-07-16T00:00:00.000Z', endExclusive: '2026-07-16T01:00:00.000Z', cost: 1, tokens: 15, sessions: 1, partial: true }] }];
+  model.report.projects = [{ key: 'project-1', label: '<Project>', path: 'C:\\work\\<private>', estimatedCost: 1, comparisonPercent: 10, sessionCount: 1, activeDays: 1, topModel: '<model>', averageCostPerSession: 1, partial: true, pinned: true, excluded: false }];
+  model.report.models = [
+    { model: '<model>', estimatedCost: 1, tokens: { inputTokens: 10, cachedInputTokens: 2, outputTokens: 3, totalTokens: 15 }, sessionCount: 1, projectCount: 1, averageCostPerSession: 1, sharePercent: 50, pricingState: 'missing', partial: true },
+    { model: 'bundled', estimatedCost: 2, tokens: { inputTokens: 1, cachedInputTokens: 0, outputTokens: 1, totalTokens: 2 }, sessionCount: 1, projectCount: 1, averageCostPerSession: 2, sharePercent: 50, pricingState: 'bundled', partial: false }
+  ];
+  return model;
+}
 
 function viewModel(): CostCenterViewModel {
   return {

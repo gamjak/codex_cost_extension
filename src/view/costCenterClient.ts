@@ -18,6 +18,8 @@ export function buildCostCenterClientScript(): string {
     if (type === 'setSection') return post({ type: 'setSection', value: target.dataset.value });
     if (type === 'clearFilter') return post({ type: 'clearFilter', value: target.dataset.value });
     if (type === 'filterChartPoint') return post({ type: 'filterChartPoint', pointStart: target.dataset.start, pointEndExclusive: target.dataset.endExclusive });
+    if (type === 'setSort') return post({ type: 'setSort', key: target.dataset.key, value: target.dataset.value });
+    if (type === 'setSearch') return post({ type: 'setSearch', value: target.value });
     if (type === 'drillProject' || type === 'drillModel' || type === 'toggleSession' || type === 'toggleProjectPin' || type === 'excludeProject') return post({ type, key: target.dataset.key });
     if (type === 'updateSettingField') {
       const value = target instanceof HTMLInputElement && target.type === 'checkbox' ? target.checked : target.value;

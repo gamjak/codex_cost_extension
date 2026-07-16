@@ -4,6 +4,7 @@ import type { CostCenterUiState } from '../domain/costCenterState';
 
 import { buildCostCenterClientScript } from './costCenterClient';
 import { buildOverview } from './costCenterOverviewPresentation';
+import { buildModelsTable, buildProjectsTable, buildSessionsTable } from './costCenterTablePresentation';
 
 export interface LogRootDiagnostic {
   root: string;
@@ -55,9 +56,9 @@ function panels(model: CostCenterViewModel): string {
   const selected = model.report.filters.section;
   const sections: Array<[CostCenterReport['filters']['section'], string]> = [
     ['overview', buildOverview(model.report)],
-    ['sessions', '<p>Sessions analysis is loading.</p>'],
-    ['projects', '<p>Projects analysis is loading.</p>'],
-    ['models', '<p>Models analysis is loading.</p>']
+    ['sessions', buildSessionsTable(model.report, model.uiState)],
+    ['projects', buildProjectsTable(model.report, model.uiState)],
+    ['models', buildModelsTable(model.report, model.uiState)]
   ];
   return sections.map(([section, content]) => `<section id="panel-${section}" role="tabpanel" aria-labelledby="tab-${section}"${section === selected ? '' : ' hidden'}>${content}</section>`).join('');
 }
