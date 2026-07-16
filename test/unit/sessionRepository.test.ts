@@ -3,13 +3,30 @@ import * as fsSync from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { SessionFileDescriptor } from '../../src/data/sessionScanner';
+
+const scannerMock = vi.hoisted(() => ({
+  transform: undefined as undefined | ((descriptors: SessionFileDescriptor[]) => SessionFileDescriptor[])
+}));
+
+vi.mock('../../src/data/sessionScanner', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/data/sessionScanner')>();
+  return {
+    ...actual,
+    findSessionFileDescriptors: async (...args: Parameters<typeof actual.findSessionFileDescriptors>) => {
+      const descriptors = await actual.findSessionFileDescriptors(...args);
+      return scannerMock.transform ? scannerMock.transform(descriptors) : descriptors;
+    }
+  };
+});
 
 import { SessionRepository } from '../../src/data/sessionRepository';
 
 const tempDirectories: string[] = [];
 
 afterEach(async () => {
+  scannerMock.transform = undefined;
   await Promise.all(tempDirectories.splice(0).map((directory) => fs.rm(directory, { recursive: true, force: true })));
 });
 
@@ -98,6 +115,32 @@ describe('SessionRepository', () => {
     await fs.writeFile(replacement, `${sessionLines(40)}\n${tokenLine(50)}\n`);
     await fs.rename(replacement, sessionPath);
     expect((await repository.load([root])).sessions[0]?.usage?.inputTokens).toBe(50);
+    expect(events).toEqual(['full']);
+  });
+
+  it('fully parses growth when native identity metadata becomes partial', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'codex-cost-repository-'));
+    tempDirectories.push(root);
+    const sessionPath = path.join(root, 'session.jsonl');
+    const events: string[] = [];
+    let scan = 0;
+    let initialCtime = 0;
+    scannerMock.transform = (descriptors) => descriptors.map((descriptor) => {
+      scan += 1;
+      if (scan === 1) {
+        initialCtime = descriptor.ctimeMs as number;
+        return { ...descriptor, dev: 10, ino: 20 };
+      }
+      const { ino: _ino, ...partial } = descriptor;
+      return { ...partial, dev: 10, ctimeMs: initialCtime };
+    });
+    const repository = new SessionRepository({ onParse: (kind) => events.push(kind) });
+    await fs.writeFile(sessionPath, `${sessionLines(10)}\n`);
+    await repository.load([root]);
+    events.length = 0;
+    await fs.appendFile(sessionPath, `${tokenLine(20)}\n`);
+
+    expect((await repository.load([root])).sessions[0]?.usage?.inputTokens).toBe(20);
     expect(events).toEqual(['full']);
   });
 

@@ -72,7 +72,12 @@ function diagnosticsWarnings(
 }
 
 function sameIdentity(left: SessionFileDescriptor, right: SessionFileDescriptor): boolean {
-  if (left.dev && left.ino && right.dev && right.ino) {
+  const leftHasNativeIdentity = left.dev !== undefined || left.ino !== undefined;
+  const rightHasNativeIdentity = right.dev !== undefined || right.ino !== undefined;
+  if (leftHasNativeIdentity || rightHasNativeIdentity) {
+    if (!left.dev || !left.ino || !right.dev || !right.ino) {
+      return false;
+    }
     return left.dev === right.dev && left.ino === right.ino;
   }
   return left.ctimeMs === right.ctimeMs;
