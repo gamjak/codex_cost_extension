@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 
 const requiredPackagePaths = [
   'extension/out/src/extension.js',
+  'extension/out/src/config.js',
   'extension/package.json',
   'extension/readme.md',
   'extension/LICENSE.txt',

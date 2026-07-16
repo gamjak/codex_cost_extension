@@ -262,6 +262,21 @@
           "default": "workspace",
           "description": "Default scope used when the Codex Cost view opens."
         },
+        "codexCost.costCenter.defaultRange": {
+          "type": "string",
+          "enum": [
+            "today",
+            "7d",
+            "30d"
+          ],
+          "default": "7d",
+          "description": "Default time range used before the Cost Center has remembered a personal selection."
+        },
+        "codexCost.costCenter.compareByDefault": {
+          "type": "boolean",
+          "default": false,
+          "description": "Compare with the immediately preceding equivalent period before a personal selection is remembered."
+        },
         "codexCost.autoRefreshSeconds": {
           "type": "integer",
           "default": 60,
@@ -296,6 +311,11 @@
           "type": "boolean",
           "default": true,
           "description": "Show one warning when the selected workspace budget reaches its threshold and one when it is exceeded. Enabled by default."
+        },
+        "codexCost.budget.notifications.thresholdSummary": {
+          "type": "boolean",
+          "default": true,
+          "description": "Include a local spend summary in the first notification when a budget threshold is crossed."
         },
         "codexCost.budget.notifications.everyAmount": {
           "type": "number",

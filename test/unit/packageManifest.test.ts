@@ -36,5 +36,11 @@ describe('VS Code manifest', () => {
     expect(manifest.main).toBe('./out/src/extension.js');
     expect(manifest.contributes.configuration.properties['codexCost.budget.notifications.enabled'].default).toBe(true);
     expect(manifest.contributes.configuration.properties['codexCost.sources.include'].default).toEqual([]);
+    expect(manifest.contributes.configuration.properties['codexCost.costCenter.defaultRange']).toMatchObject({
+      default: '7d',
+      enum: ['today', '7d', '30d']
+    });
+    expect(manifest.contributes.configuration.properties['codexCost.costCenter.compareByDefault'].default).toBe(false);
+    expect(manifest.contributes.configuration.properties['codexCost.budget.notifications.thresholdSummary'].default).toBe(true);
   });
 });
