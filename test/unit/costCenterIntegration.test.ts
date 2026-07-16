@@ -5,6 +5,7 @@ import type { ExtensionConfig } from '../../src/config';
 import type { CostCenterPreferences } from '../../src/domain/costCenterState';
 import type { ParsedSession } from '../../src/domain/types';
 import { ConfigurationRefreshController } from '../../src/configurationRefreshController';
+import { saveDailyBudget } from '../../src/configureDailyBudget';
 import { CostCenterController, type CostCenterControllerDependencies } from '../../src/view/costCenterController';
 import type { CostDataSnapshot } from '../../src/view/costTreeProvider';
 
@@ -130,6 +131,13 @@ describe('real configuration listener and guided batch coordination', () => {
     expect(refresh).toHaveBeenCalledOnce();
     await delayed[0]();
     expect(refresh).toHaveBeenCalledOnce(); expect(reaggregate).not.toHaveBeenCalled();
+  });
+
+  it('uses cached publication for the configure-daily-budget command path', async () => {
+    const scan = vi.fn(() => Promise.resolve()); const publishCached = vi.fn(() => Promise.resolve());
+    const coordinator = new ConfigurationRefreshController(scan, publishCached); const writes: Array<[string, unknown]> = [];
+    await saveDailyBudget(coordinator, 20, (key, value) => { writes.push([key, value]); return Promise.resolve(); });
+    expect(writes).toEqual([['budget.dayAmount', 20]]); expect(scan).not.toHaveBeenCalled(); expect(publishCached).toHaveBeenCalledOnce();
   });
 });
 

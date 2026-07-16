@@ -173,6 +173,14 @@ export class CodexCostTreeProvider implements vscode.TreeDataProvider<TreeNode> 
     this.output.appendLine(`[${new Date().toISOString()}] Cost Center render failed: ${message}`);
   }
 
+  publishCachedConsumers(): Promise<void> {
+    const snapshot = this.latestCostData;
+    if (!snapshot) return Promise.resolve();
+    this.publishSnapshot({ ...snapshot, configuration: readExtensionConfig() });
+    this.onDidChangeTreeDataEmitter.fire();
+    return Promise.resolve();
+  }
+
   private async performRefresh(): Promise<void> {
     this.lastRefreshSucceeded = false;
     this.latestCostControl = undefined;
@@ -185,46 +193,6 @@ export class CodexCostTreeProvider implements vscode.TreeDataProvider<TreeNode> 
     try {
       const loaded = await this.sessionRepository.load(configuration.logRoots);
 
-      const workspaceReport = buildUsageReport(loaded.sessions, configuration.pricingByModel, {
-        scope: 'workspace',
-        workspaceRoots,
-        sessionSources: configuration.sessionSources,
-        filterStartDateInput: configuration.filterStartDate,
-        budgetSettings: configuration.budgetSettings,
-        budgetPeriod: configuration.statusBarBudgetPeriod,
-        now: refreshedAt
-      });
-      const control = buildCostControlReport(loaded.sessions, configuration.pricingByModel, {
-        scope: 'workspace',
-        workspaceRoots,
-        sessionSources: configuration.sessionSources,
-        filterStartDateInput: configuration.filterStartDate,
-        budgetSettings: configuration.budgetSettings,
-        budgetPeriod: 'day',
-        now: refreshedAt
-      });
-      const report = buildUsageReport(loaded.sessions, configuration.pricingByModel, {
-        scope: this.scope,
-        workspaceRoots,
-        sessionSources: configuration.sessionSources,
-        filterStartDateInput: configuration.filterStartDate,
-        budgetSettings: configuration.budgetSettings,
-        budgetPeriod: configuration.statusBarBudgetPeriod,
-        now: refreshedAt
-      });
-      const displayReport = loaded.filesCount === 0
-        ? {
-            ...report,
-            warnings: [...report.warnings, ...loaded.warnings, 'No Codex logs found under configured log roots.']
-          }
-        : {
-            ...report,
-            warnings: [...report.warnings, ...loaded.warnings]
-          };
-
-      this.updateStatusBar(workspaceReport, configuration, control);
-      this.latestBudgetStatus = workspaceReport.budget;
-      this.latestCostControl = control;
       const snapshot: CostDataSnapshot = {
         sessions: loaded.sessions,
         filesCount: loaded.filesCount,
@@ -233,6 +201,64 @@ export class CodexCostTreeProvider implements vscode.TreeDataProvider<TreeNode> 
         workspaceRoots,
         configuration
       };
+      this.publishSnapshot(snapshot);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      this.output.appendLine(`[${new Date().toISOString()}] Refresh failed: ${message}`);
+      const emptyControl = emptyCostControlReport(configuration);
+      this.updateStatusBar(emptyUsageReport(configuration), configuration, emptyControl);
+      this.nodes = [
+        leafNode('error', 'Failed to load Codex logs', message, message, 'error')
+      ];
+    }
+
+    this.onDidChangeTreeDataEmitter.fire();
+  }
+
+  private publishSnapshot(snapshot: CostDataSnapshot): void {
+      const { sessions, filesCount, warnings, refreshedAt, workspaceRoots, configuration } = snapshot;
+      configureDisplay(vscode.env.language);
+      this.lastRefreshAt = refreshedAt;
+      const workspaceReport = buildUsageReport(sessions, configuration.pricingByModel, {
+        scope: 'workspace',
+        workspaceRoots,
+        sessionSources: configuration.sessionSources,
+        filterStartDateInput: configuration.filterStartDate,
+        budgetSettings: configuration.budgetSettings,
+        budgetPeriod: configuration.statusBarBudgetPeriod,
+        now: refreshedAt
+      });
+      const control = buildCostControlReport(sessions, configuration.pricingByModel, {
+        scope: 'workspace',
+        workspaceRoots,
+        sessionSources: configuration.sessionSources,
+        filterStartDateInput: configuration.filterStartDate,
+        budgetSettings: configuration.budgetSettings,
+        budgetPeriod: 'day',
+        now: refreshedAt
+      });
+      const report = buildUsageReport(sessions, configuration.pricingByModel, {
+        scope: this.scope,
+        workspaceRoots,
+        sessionSources: configuration.sessionSources,
+        filterStartDateInput: configuration.filterStartDate,
+        budgetSettings: configuration.budgetSettings,
+        budgetPeriod: configuration.statusBarBudgetPeriod,
+        now: refreshedAt
+      });
+      const displayReport = filesCount === 0
+        ? {
+            ...report,
+            warnings: [...report.warnings, ...warnings, 'No Codex logs found under configured log roots.']
+          }
+        : {
+            ...report,
+            warnings: [...report.warnings, ...warnings]
+          };
+
+      this.updateStatusBar(workspaceReport, configuration, control);
+      this.latestBudgetStatus = workspaceReport.budget;
+      this.latestCostControl = control;
       this.latestCostData = snapshot;
       this.lastRefreshSucceeded = true;
       this.nodes = buildUsageTree(this.scope, displayReport, {
@@ -247,17 +273,6 @@ export class CodexCostTreeProvider implements vscode.TreeDataProvider<TreeNode> 
           this.output.appendLine(`[${new Date().toISOString()}] Cost Center update failed: ${message}`);
         }
       }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      this.output.appendLine(`[${new Date().toISOString()}] Refresh failed: ${message}`);
-      const emptyControl = emptyCostControlReport(configuration);
-      this.updateStatusBar(emptyUsageReport(configuration), configuration, emptyControl);
-      this.nodes = [
-        leafNode('error', 'Failed to load Codex logs', message, message, 'error')
-      ];
-    }
-
-    this.onDidChangeTreeDataEmitter.fire();
   }
 
   private updateStatusBar(

@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 import { createAutoRefreshController } from './autoRefreshController';
 import { BudgetNotificationController } from './budgetNotificationController';
 import { readExtensionConfig } from './config';
+import { saveDailyBudget } from './configureDailyBudget';
 import { ConfigurationRefreshController } from './configurationRefreshController';
 import { SessionRepository } from './data/sessionRepository';
 import { createPeriodBoundaryController } from './periodBoundaryController';
@@ -21,18 +22,22 @@ export function activate(context: vscode.ExtensionContext): void {
   );
   const refreshAndNotify = async (): Promise<void> => {
     await provider.refresh();
+    notifyLatestBudget();
+  };
+  const notifyLatestBudget = (): void => {
     const status = provider.getLatestBudgetStatus(); const configuration = readExtensionConfig();
     if (configuration.budgetNotificationsEnabled && status) budgetNotifications.notify(status, new Date(), configuration.budgetNotificationEveryAmount);
+  };
+  const publishCachedAndNotify = async (): Promise<void> => {
+    await provider.publishCachedConsumers();
+    notifyLatestBudget();
   };
   const autoRefreshController = createAutoRefreshController(() => refreshAndNotify());
   const periodBoundaryController = createPeriodBoundaryController(() => refreshAndNotify());
   const diagnosticsRepository = new SessionRepository();
   const configurationRefresh = new ConfigurationRefreshController(
     refreshAndNotify,
-    async () => {
-      const model = controller.getModel();
-      if (model) costCenter.update(await controller.open());
-    }
+    publishCachedAndNotify
   );
   const controller = new CostCenterController({
     workspaceState: context.workspaceState, globalState: context.globalState,
@@ -72,8 +77,11 @@ export function activate(context: vscode.ExtensionContext): void {
   register(context, 'codexCost.configureDailyBudget', async () => {
     const amountInput = await vscode.window.showInputBox({ prompt: 'Set a positive daily USD budget', placeHolder: 'For example: 10.00', validateInput: validateDailyBudgetInput });
     if (amountInput === undefined || validateDailyBudgetInput(amountInput)) return;
-    await vscode.workspace.getConfiguration('codexCost').update('budget.dayAmount', Number(amountInput.trim()), vscode.ConfigurationTarget.Global);
-    await refreshAndNotify();
+    await saveDailyBudget(
+      configurationRefresh,
+      Number(amountInput.trim()),
+      (key, value) => Promise.resolve(vscode.workspace.getConfiguration('codexCost').update(key, value, vscode.ConfigurationTarget.Global))
+    );
   });
   register(context, 'codexCost.copySummary', () => provider.copySummary());
 

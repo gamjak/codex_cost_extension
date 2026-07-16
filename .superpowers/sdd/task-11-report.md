@@ -27,3 +27,11 @@
 - Added provider regression coverage proving a successful snapshot is published once and remains available after a later failed refresh.
 - Review RED evidence: delayed guided event test observed two refreshes; provider injection test scanned real logs instead of the fake repository.
 - Review GREEN evidence: focused suite passed 2 files / 9 tests; final `pnpm run check` passed 30 files / 150 tests.
+
+## Second review fixes
+
+- Added one provider `publishCachedConsumers` path that rebuilds sidebar nodes, status items, budget notification state, legacy control data, and the Cost Center updater from the retained successful sessions using current configuration.
+- Routed external and guided non-source changes through that cached path; repository loading remains exclusive to source/root changes, explicit refresh, workspace changes, and automatic refresh.
+- Routed `configureDailyBudget` through a tested production helper and the guided batch coordinator, eliminating its explicit provider refresh and suppressing its configuration event before one cached publication.
+- RED evidence: cached-consumer test failed because `publishCachedConsumers` did not exist; command-path test failed because the production `saveDailyBudget` helper did not exist.
+- GREEN evidence: focused integration/provider suite passed 2 files / 11 tests; final `pnpm run check` passed 30 files / 152 tests.
