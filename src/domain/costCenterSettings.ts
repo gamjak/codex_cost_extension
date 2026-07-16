@@ -1,5 +1,4 @@
-import type { ExtensionConfig } from '../config';
-import type { BudgetPeriod } from './types';
+import type { BudgetPeriod, BudgetSettings, StatusBarVisibility } from './types';
 
 export interface GuidedSettingsDraft {
   budget: {
@@ -51,13 +50,33 @@ export interface GuidedSettingsUpdate {
   value: boolean | number | string | string[];
 }
 
-type GuidedSettingsConfig = ExtensionConfig & {
+export interface GuidedSettingsConfig {
+  logRoots: string[];
   rawLogRoots?: string[];
+  sessionSources: string[];
+  budgetSettings: BudgetSettings;
+  budgetNotificationsEnabled: boolean;
+  budgetNotificationEveryAmount: number;
+  statusBarVisibility: StatusBarVisibility;
+  statusBarBudgetPeriod: BudgetPeriod;
   costCenterDefaults?: { range: 'today' | '7d' | '30d'; compare: boolean };
   budgetNotificationThresholdSummary?: boolean;
-};
+}
 
-export const RECOMMENDED_GUIDED_SETTINGS: Readonly<GuidedSettingsDraft> = {
+type DeepReadonly<T> = T extends object ? { readonly [Key in keyof T]: DeepReadonly<T[Key]> } : T;
+
+function deepFreeze<T>(value: T): DeepReadonly<T> {
+  if (typeof value === 'object' && value !== null && !Object.isFrozen(value)) {
+    for (const nestedValue of Object.values(value)) {
+      deepFreeze(nestedValue);
+    }
+    Object.freeze(value);
+  }
+
+  return value as DeepReadonly<T>;
+}
+
+export const RECOMMENDED_GUIDED_SETTINGS = deepFreeze({
   budget: { dayAmount: 0, weekAmount: 0, monthAmount: 0, warningPercent: 80 },
   display: {
     showSession: true,
@@ -69,7 +88,7 @@ export const RECOMMENDED_GUIDED_SETTINGS: Readonly<GuidedSettingsDraft> = {
   },
   dataSources: { logRoots: ['%USERPROFILE%/.codex/sessions'], include: [] },
   notifications: { enabled: true, everyAmount: 0, thresholdSummary: true }
-};
+} satisfies GuidedSettingsDraft);
 
 function cloneDraft(draft: GuidedSettingsDraft): GuidedSettingsDraft {
   return {

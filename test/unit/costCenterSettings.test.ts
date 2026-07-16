@@ -1,19 +1,16 @@
-import { describe, expect, it } from 'vitest';
-import type { ExtensionConfig } from '../../src/config';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 import {
   createGuidedSettingsDraft,
+  RECOMMENDED_GUIDED_SETTINGS,
   resetSettingsGroup,
   settingsUpdates,
-  validateGuidedSettings
+  validateGuidedSettings,
+  type GuidedSettingsConfig
 } from '../../src/domain/costCenterSettings';
 
-const config: ExtensionConfig = {
+const config: GuidedSettingsConfig = {
   logRoots: ['C:\\Users\\example\\.codex\\sessions'],
-  pricingByModel: { 'gpt-5.4': { inputPer1M: 2.5, cachedInputPer1M: 0.25, outputPer1M: 15 } },
   sessionSources: ['vscode'],
-  scopeDefault: 'workspace',
-  autoRefreshSeconds: 60,
-  filterStartDate: '',
   budgetSettings: { dayAmount: 5, weekAmount: 15, monthAmount: 50, warningPercent: 80 },
   budgetNotificationsEnabled: true,
   budgetNotificationEveryAmount: 10,
@@ -72,5 +69,50 @@ describe('guided cost-center settings', () => {
       sessionSources: [' VSCode ', 'vscode', 'CLI']
     }).dataSources.include).toEqual(['vscode', 'cli']);
     expect(settingsUpdates(config, createGuidedSettingsDraft(config))).toEqual([]);
+  });
+
+  it('does not represent or emit pricing when a caller includes it at runtime', () => {
+    const configWithPricing = {
+      ...config,
+      pricingByModel: { 'gpt-5.4': { inputPer1M: 2.5 } }
+    };
+    const draft = createGuidedSettingsDraft(configWithPricing);
+
+    expect(draft).not.toHaveProperty('pricingByModel');
+    expect(settingsUpdates(config, draft).map(({ key }) => key)).not.toContain('pricing.models');
+    expectTypeOf<GuidedSettingsConfig>().not.toHaveProperty('pricingByModel');
+  });
+
+  it('keeps recommended defaults and all draft arrays independent after mutation attempts', () => {
+    expect(() => {
+      (RECOMMENDED_GUIDED_SETTINGS.dataSources.logRoots as string[]).push('C:\\mutated');
+    }).toThrow(TypeError);
+    expect(() => {
+      (RECOMMENDED_GUIDED_SETTINGS.budget as { dayAmount: number }).dayAmount = 99;
+    }).toThrow(TypeError);
+
+    const first = createGuidedSettingsDraft(config);
+    const second = createGuidedSettingsDraft(config);
+    first.dataSources.logRoots.push('C:\\first-only');
+    first.dataSources.include.push('cli');
+
+    expect(second.dataSources).toEqual({
+      logRoots: ['C:\\Users\\example\\.codex\\sessions'],
+      include: ['vscode']
+    });
+    expect(resetSettingsGroup(first, 'dataSources').dataSources).toEqual({
+      logRoots: ['%USERPROFILE%/.codex/sessions'],
+      include: []
+    });
+  });
+
+  it('returns independent reset state after a reset result is mutated', () => {
+    const reset = resetSettingsGroup(createGuidedSettingsDraft(config), 'dataSources');
+    reset.dataSources.logRoots.push('C:\\reset-only');
+
+    expect(resetSettingsGroup(createGuidedSettingsDraft(config), 'dataSources').dataSources).toEqual({
+      logRoots: ['%USERPROFILE%/.codex/sessions'],
+      include: []
+    });
   });
 });
