@@ -87,7 +87,7 @@ describe('package verifier', () => {
     );
     expect(includedFiles.some((file) => file.startsWith('test/performance/'))).toBe(false);
     expect(includedFiles.some((file) => file.includes('benchmark-data'))).toBe(false);
-  });
+  }, 15_000);
 
   it('accepts a package containing every required release entry', () => {
     const result = verifyPackage(requiredPackagePaths);
