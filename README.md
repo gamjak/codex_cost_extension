@@ -128,7 +128,8 @@ Run **Codex Cost: Open Cost Control** for a compact action menu, or **Codex Cost
 ## Performance and diagnostics
 
 - Overlapping log roots are deduplicated.
-- Unchanged files are reused from an in-memory cache based on file size and modification time.
+- Unchanged files are reused from an in-memory cache without parsing them again.
+- Safely appended active JSONL logs are read incrementally; truncation or file replacement falls back to a full local parse.
 - Malformed or unreadable files are skipped individually; warnings appear in the sidebar while valid sessions remain available.
 - Refresh requests are coalesced so a slow scan cannot overlap another scan.
 - Detailed refresh failures are written to the **Codex Cost** output channel.

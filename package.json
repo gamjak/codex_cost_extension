@@ -358,6 +358,7 @@
     "check": "tsc -p tsconfig.json --noEmit && eslint . && vitest run",
     "lint": "eslint .",
     "package": "vsce package --no-dependencies",
+    "benchmark:refresh": "vitest bench --run test/performance/sessionRepository.bench.ts",
     "verify-package": "node scripts/run-package-verifier.mjs",
     "watch": "tsc -watch -p tsconfig.build.json",
     "test": "vitest run",

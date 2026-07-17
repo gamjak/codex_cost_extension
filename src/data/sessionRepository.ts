@@ -1,14 +1,21 @@
-import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
 import type { ParsedSession } from '../domain/types';
-import { parseSessionFileWithDiagnostics } from './jsonlSessionParser';
-import { findSessionFiles } from './sessionScanner';
+import {
+  appendSessionToCheckpoint,
+  checkpointPrefixMatches,
+  parseSessionToCheckpoint,
+  type SessionParseCheckpoint,
+  type SessionParseDiagnostics
+} from './sessionParseCheckpoint';
+import {
+  findSessionFileDescriptors,
+  type SessionFileDescriptor
+} from './sessionScanner';
 
 interface CachedSession {
-  mtimeMs: number;
-  ctimeMs: number;
-  size: number;
+  descriptor: SessionFileDescriptor;
+  checkpoint: SessionParseCheckpoint;
   session: ParsedSession | null;
   warnings: string[];
 }
@@ -21,6 +28,8 @@ export interface LoadSessionsResult {
 
 export interface SessionRepositoryOptions {
   concurrency?: number;
+  scannerConcurrency?: number;
+  onParse?: (kind: 'full' | 'append', filePath: string) => void;
 }
 
 async function mapWithConcurrency<T, R>(
@@ -45,7 +54,7 @@ async function mapWithConcurrency<T, R>(
 
 function diagnosticsWarnings(
   filePath: string,
-  diagnostics: Awaited<ReturnType<typeof parseSessionFileWithDiagnostics>>['diagnostics']
+  diagnostics: SessionParseDiagnostics
 ): string[] {
   const label = path.basename(filePath);
   const warnings: string[] = [];
@@ -63,17 +72,43 @@ function diagnosticsWarnings(
   return warnings;
 }
 
+function sameIdentity(left: SessionFileDescriptor, right: SessionFileDescriptor): boolean {
+  const leftHasNativeIdentity = left.dev !== undefined || left.ino !== undefined;
+  const rightHasNativeIdentity = right.dev !== undefined || right.ino !== undefined;
+  if (leftHasNativeIdentity || rightHasNativeIdentity) {
+    if (!left.dev || !left.ino || !right.dev || !right.ino) {
+      return false;
+    }
+    return left.dev === right.dev && left.ino === right.ino;
+  }
+  return left.ctimeMs === right.ctimeMs;
+}
+
+function unchanged(cached: CachedSession, next: SessionFileDescriptor): boolean {
+  const previous = cached.descriptor;
+  return sameIdentity(previous, next) && previous.size === next.size && previous.mtimeMs === next.mtimeMs;
+}
+
+function safeAppend(cached: CachedSession, next: SessionFileDescriptor): boolean {
+  return sameIdentity(cached.descriptor, next) && next.size > cached.descriptor.size &&
+    cached.checkpoint.bytesRead === cached.descriptor.size;
+}
+
 export class SessionRepository {
   private readonly cache = new Map<string, CachedSession>();
   private readonly concurrency: number;
+  private readonly scannerConcurrency: number;
+  private readonly onParse?: SessionRepositoryOptions['onParse'];
 
   constructor(options: SessionRepositoryOptions = {}) {
     this.concurrency = Math.max(1, Math.floor(options.concurrency ?? 8));
+    this.scannerConcurrency = Math.max(1, Math.floor(options.scannerConcurrency ?? 8));
+    this.onParse = options.onParse;
   }
 
   async load(logRoots: readonly string[]): Promise<LoadSessionsResult> {
-    const filePaths = await findSessionFiles(logRoots);
-    const currentFiles = new Set(filePaths);
+    const descriptors = await findSessionFileDescriptors(logRoots, { concurrency: this.scannerConcurrency });
+    const currentFiles = new Set(descriptors.map(({ filePath }) => filePath));
 
     for (const cachedPath of this.cache.keys()) {
       if (!currentFiles.has(cachedPath)) {
@@ -81,42 +116,42 @@ export class SessionRepository {
       }
     }
 
-    const entries = await mapWithConcurrency(filePaths, this.concurrency, async (filePath) => {
+    const entries = await mapWithConcurrency(descriptors, this.concurrency, async (descriptor) => {
+      const { filePath } = descriptor;
       try {
-        const stat = await fs.stat(filePath);
         const cached = this.cache.get(filePath);
-        if (cached && cached.mtimeMs === stat.mtimeMs && cached.ctimeMs === stat.ctimeMs && cached.size === stat.size) {
+        if (cached && unchanged(cached, descriptor)) {
           return cached;
         }
 
-        const parsed = await parseSessionFileWithDiagnostics(filePath);
+        const kind = cached && safeAppend(cached, descriptor) &&
+          await checkpointPrefixMatches(filePath, cached.checkpoint) ? 'append' : 'full';
+        this.onParse?.(kind, filePath);
+        const parsed = kind === 'append'
+          ? await appendSessionToCheckpoint(filePath, cached!.checkpoint)
+          : await parseSessionToCheckpoint(filePath);
         const entry: CachedSession = {
-          mtimeMs: stat.mtimeMs,
-          ctimeMs: stat.ctimeMs,
-          size: stat.size,
-          session: parsed.session,
-          warnings: diagnosticsWarnings(filePath, parsed.diagnostics)
+          descriptor,
+          checkpoint: parsed.checkpoint,
+          session: parsed.result.session,
+          warnings: diagnosticsWarnings(filePath, parsed.result.diagnostics)
         };
         this.cache.set(filePath, entry);
         return entry;
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown read error';
-        const entry: CachedSession = {
-          mtimeMs: -1,
-          ctimeMs: -1,
-          size: -1,
+        this.cache.delete(filePath);
+        return {
           session: null,
           warnings: [`${path.basename(filePath)}: could not be read (${message}).`]
         };
-        this.cache.delete(filePath);
-        return entry;
       }
     });
 
     return {
       sessions: entries.flatMap((entry) => entry.session ? [entry.session] : []),
       warnings: entries.flatMap((entry) => entry.warnings),
-      filesCount: filePaths.length
+      filesCount: descriptors.length
     };
   }
 }

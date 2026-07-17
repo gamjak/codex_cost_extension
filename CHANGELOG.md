@@ -2,6 +2,10 @@
 
 All notable changes to Codex Cost are documented here.
 
+## Unreleased
+
+- Improved large-log refresh performance by combining discovery metadata, reusing unchanged sessions, and parsing safe JSONL appends incrementally.
+
 ## 0.5.0 - 2026-07-16
 
 - Unify workspace and all-session analysis in the Cost Center, available from the status bar, sidebar, and Command Palette.
