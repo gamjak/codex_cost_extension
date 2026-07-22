@@ -372,7 +372,7 @@
     "eslint": "^10.6.0",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.64.0",
-    "vite": "^6.0.0",
+    "vite": "^8.1.5",
     "vitest": "^4.1.10"
   }
 }
