@@ -7,4 +7,10 @@
   <description><![CDATA[
     <p>Local Codex usage and cost estimates.</p>
   ]]></description>
+
+  <extensions defaultExtensionNs="com.intellij">
+    <statusBarWidgetFactory id="CodexCost.Session" implementation="com.gamjak.codexcost.statusbar.SessionCostWidgetFactory"/>
+    <statusBarWidgetFactory id="CodexCost.Project" implementation="com.gamjak.codexcost.statusbar.ProjectCostWidgetFactory"/>
+    <statusBarWidgetFactory id="CodexCost.Budget" implementation="com.gamjak.codexcost.statusbar.BudgetCostWidgetFactory"/>
+  </extensions>
 </idea-plugin>
