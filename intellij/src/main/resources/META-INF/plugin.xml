@@ -1,0 +1,10 @@
+<idea-plugin>
+  <id>com.gamjak.codexcost</id>
+  <name>Codex Cost</name>
+  <vendor email="gambkej@gmx.net" url="https://github.com/gamjak/codex_cost_extension">gamjak</vendor>
+  <depends>com.intellij.modules.platform</depends>
+
+  <description><![CDATA[
+    <p>Local Codex usage and cost estimates.</p>
+  ]]></description>
+</idea-plugin>
