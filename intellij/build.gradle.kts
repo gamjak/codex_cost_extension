@@ -16,6 +16,7 @@ repositories {
 }
 
 dependencies {
+  implementation("com.google.code.gson:gson:2.13.2")
   testImplementation(kotlin("test"))
   intellijPlatform {
     intellijIdeaCommunity("2024.2")
