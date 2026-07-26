@@ -12,5 +12,6 @@
     <statusBarWidgetFactory id="CodexCost.Session" implementation="com.gamjak.codexcost.statusbar.SessionCostWidgetFactory"/>
     <statusBarWidgetFactory id="CodexCost.Project" implementation="com.gamjak.codexcost.statusbar.ProjectCostWidgetFactory"/>
     <statusBarWidgetFactory id="CodexCost.Budget" implementation="com.gamjak.codexcost.statusbar.BudgetCostWidgetFactory"/>
+    <toolWindow id="Codex Cost" anchor="right" factoryClass="com.gamjak.codexcost.toolwindow.CodexCostToolWindowFactory"/>
   </extensions>
 </idea-plugin>
