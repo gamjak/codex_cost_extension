@@ -13,6 +13,8 @@ class CodexCostSettingsTest {
     assertTrue(state.showSession)
     assertTrue(state.showProject)
     assertTrue(state.showBudget)
+    assertTrue(state.notificationsEnabled)
+    assertEquals(0.0, state.notificationEveryAmount)
     assertEquals("month", state.statusBudgetPeriod)
   }
 }

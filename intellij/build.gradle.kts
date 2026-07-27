@@ -1,12 +1,13 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.dsl.JvmDefaultMode
 
 plugins {
   kotlin("jvm") version "2.2.20"
-  id("org.jetbrains.intellij.platform") version "2.10.2"
+  id("org.jetbrains.intellij.platform") version "2.18.1"
 }
 
 group = "com.gamjak"
-version = "0.5.0"
+version = "0.6.0"
 
 repositories {
   mavenCentral()
@@ -26,6 +27,7 @@ dependencies {
 kotlin {
   compilerOptions {
     jvmTarget.set(JvmTarget.JVM_21)
+    jvmDefault.set(JvmDefaultMode.NO_COMPATIBILITY)
   }
 }
 

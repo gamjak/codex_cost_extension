@@ -28,6 +28,16 @@ private fun configuredBudget(period: BudgetPeriod, settings: BudgetSettings): Do
   BudgetPeriod.MONTH -> settings.monthAmount
 }.takeIf { it > 0.0 }
 
+fun normalizeSource(source: String?, originator: String?): String {
+  val value = (source ?: originator ?: "unknown").lowercase()
+  return when {
+    "vscode" in value || "visual studio code" in value -> "vscode"
+    "desktop" in value -> "desktop"
+    "cli" in value || "codex_exec" in value || value == "codex" -> "cli"
+    else -> value
+  }
+}
+
 fun buildUsageReport(sessions: List<ParsedSession>, pricing: PricingByModel, options: ReportOptions): UsageReport {
   val now = options.clock.instant()
   val budgetStart = budgetStart(options.budgetPeriod, now, options.clock.zone)
@@ -43,12 +53,21 @@ fun buildUsageReport(sessions: List<ParsedSession>, pricing: PricingByModel, opt
   var budgetHasGaps = false
   val sessionIds = mutableSetOf<String>()
   val warnings = sortedSetOf<String>()
+  data class SessionAcc(var cwd: String? = null, var model: String? = null, var updatedAt: Instant = Instant.EPOCH,
+    var input: Long = 0, var cached: Long = 0, var output: Long = 0, var total: Long = 0,
+    var cost: Double = 0.0, var priced: Boolean = false, var gaps: Boolean = false, val id: String)
+  data class ModelAcc(var total: Long = 0, var cost: Double = 0.0, var priced: Boolean = false,
+    var gaps: Boolean = false, val sessions: MutableSet<String> = mutableSetOf())
+  val sessionRows = mutableMapOf<String, SessionAcc>()
+  val modelRows = mutableMapOf<String, ModelAcc>()
 
   sessions.forEach { session ->
-    val normalizedSource = (session.source ?: session.originator ?: "unknown").lowercase()
+    val normalizedSource = normalizeSource(session.source, session.originator)
     if (options.sources.isNotEmpty() && normalizedSource !in options.sources) return@forEach
     buildSessionUsageDeltas(session).forEach { delta ->
       if (delta.timestamp > now) return@forEach
+      if (options.startAt != null && delta.timestamp < options.startAt) return@forEach
+      if (options.endAt != null && delta.timestamp > options.endAt) return@forEach
       val inScope = options.scope == ViewScope.ALL || matchesProject(delta.cwd, options.projectRoots)
       if (!inScope) return@forEach
       val price = resolveModelPricing(delta.model, pricing)
@@ -65,6 +84,21 @@ fun buildUsageReport(sessions: List<ParsedSession>, pricing: PricingByModel, opt
       output += delta.tokens.outputTokens
       total += delta.tokens.totalTokens
       sessionIds += "${session.filePath}::${session.sessionId}"
+      val sessionKey = "${session.filePath}::${session.sessionId}"
+      val row = sessionRows.getOrPut(sessionKey) { SessionAcc(id = session.sessionId) }
+      row.cwd = delta.cwd
+      row.model = delta.model
+      row.updatedAt = maxOf(row.updatedAt, delta.timestamp)
+      row.input += delta.tokens.inputTokens
+      row.cached += delta.tokens.cachedInputTokens
+      row.output += delta.tokens.outputTokens
+      row.total += delta.tokens.totalTokens
+      if (deltaCost == null) row.gaps = true else { row.cost += deltaCost; row.priced = true }
+      val modelKey = delta.model ?: "unknown"
+      val modelRow = modelRows.getOrPut(modelKey) { ModelAcc() }
+      modelRow.total += delta.tokens.totalTokens
+      modelRow.sessions += sessionKey
+      if (deltaCost == null) modelRow.gaps = true else { modelRow.cost += deltaCost; modelRow.priced = true }
       if (delta.timestamp >= budgetStart) {
         if (deltaCost == null) budgetHasGaps = true else {
           budgetCost += deltaCost
@@ -84,6 +118,14 @@ fun buildUsageReport(sessions: List<ParsedSession>, pricing: PricingByModel, opt
   }
   return UsageReport(
     summary = SummaryReport(sessionIds.size, input, cached, output, total, if (hasPricedUsage || !hasGaps) cost else null),
+    sessions = sessionRows.values.map { row ->
+      SessionReportItem(row.id, row.cwd, row.model, row.updatedAt,
+        TokenUsage(row.input, row.cached, row.output, row.total),
+        if (row.priced || !row.gaps) row.cost else null, !row.gaps)
+    }.sortedByDescending { it.updatedAt },
+    models = modelRows.map { (model, row) ->
+      ModelReportItem(model, row.total, row.sessions.size, if (row.priced || !row.gaps) row.cost else null, !row.gaps)
+    }.sortedByDescending { it.totalTokens },
     budget = BudgetStatus(options.budgetPeriod, spent, budgetAmount, options.budget.warningPercent, budgetHasGaps, state),
     warnings = warnings.toList(),
     hasEstimatedCostGaps = hasGaps

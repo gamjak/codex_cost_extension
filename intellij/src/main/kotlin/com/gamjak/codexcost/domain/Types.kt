@@ -1,8 +1,8 @@
 package com.gamjak.codexcost.domain
 
 import java.nio.file.Path
-import java.time.Instant
 import java.time.Clock
+import java.time.Instant
 
 data class TokenUsage(
   val inputTokens: Long,
@@ -63,7 +63,9 @@ data class ReportOptions(
   val budget: BudgetSettings,
   val budgetPeriod: BudgetPeriod,
   val clock: Clock,
-  val sources: Set<String> = emptySet()
+  val sources: Set<String> = emptySet(),
+  val startAt: Instant? = null,
+  val endAt: Instant? = null
 )
 
 data class SummaryReport(
@@ -86,7 +88,27 @@ data class BudgetStatus(
 
 data class UsageReport(
   val summary: SummaryReport,
+  val sessions: List<SessionReportItem>,
+  val models: List<ModelReportItem>,
   val budget: BudgetStatus,
   val warnings: List<String>,
   val hasEstimatedCostGaps: Boolean
+)
+
+data class SessionReportItem(
+  val sessionId: String,
+  val cwd: String?,
+  val model: String?,
+  val updatedAt: Instant,
+  val tokens: TokenUsage,
+  val estimatedCost: Double?,
+  val hasPricing: Boolean
+)
+
+data class ModelReportItem(
+  val model: String,
+  val totalTokens: Long,
+  val sessionCount: Int,
+  val estimatedCost: Double?,
+  val hasPricing: Boolean
 )

@@ -46,3 +46,12 @@ jobs:
         with:
           name: codex-cost-extension
           path: codex-cost-extension.vsix
+
+  intellij:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - run: sudo apt-get update && sudo apt-get install -y openjdk-21-jdk
+      - run: chmod +x intellij/gradlew
+      - run: ./gradlew test buildPlugin verifyPlugin
+        working-directory: intellij

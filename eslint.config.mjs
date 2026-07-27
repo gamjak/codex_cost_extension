@@ -3,7 +3,7 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['node_modules/**', 'out/**', '.vscode-test/**']
+    ignores: ['node_modules/**', 'out/**', '.vscode-test/**', 'intellij/build/**']
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked.map((configuration) => ({

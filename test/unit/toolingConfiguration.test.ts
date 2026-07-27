@@ -88,6 +88,7 @@ describe('tooling configuration', () => {
     const ignoredPaths = readText('.vscodeignore').split(/\r?\n/);
     expect(ignoredPaths).toContain('vitest.config.ts');
     expect(ignoredPaths).toContain('.superpowers/**');
+    expect(ignoredPaths).toContain('intellij/**');
   });
 
   it('uses immutable action pins and cancels stale CI runs', () => {
@@ -95,12 +96,13 @@ describe('tooling configuration', () => {
 
     expect(workflow).toContain('group: ${{ github.workflow }}-${{ github.ref }}');
     expect(workflow).toContain('cancel-in-progress: true');
-    expect(countActiveWorkflowLines(workflow, /^\s*- uses: actions\/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0\s+# v7\s*$/)).toBe(2);
+    expect(countActiveWorkflowLines(workflow, /^\s*- uses: actions\/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0\s+# v7\s*$/)).toBe(3);
     expect(countActiveWorkflowLines(workflow, /^\s*- uses: pnpm\/action-setup@0ebf47130e4866e96fce0953f49152a61190b271\s+# v6\s*$/)).toBe(2);
     expect(countActiveWorkflowLines(workflow, /^\s*- uses: actions\/setup-node@820762786026740c76f36085b0efc47a31fe5020\s+# v7\s*$/)).toBe(2);
     expect(countActiveWorkflowLines(workflow, /^\s*- uses: actions\/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a\s+# v7\s*$/)).toBe(1);
     expect(countActiveWorkflowLines(workflow, /^\s*node-version: 22\s*$/)).toBe(2);
     expect(workflow).toMatch(/pnpm run package --out codex-cost-extension\.vsix\s*\n\s*- run: pnpm run verify-package/);
+    expect(workflow).toMatch(/\.\/gradlew test buildPlugin verifyPlugin\s*\n\s+working-directory: intellij/);
   });
 
   it('lints Node package tooling with its runtime globals', () => {
@@ -155,7 +157,8 @@ describe('tooling configuration', () => {
     const featureTemplate = readText('.github/ISSUE_TEMPLATE/feature-request.yml');
     const pullRequestTemplate = readText('.github/pull_request_template.md');
 
-    expect(manifest.version).toBe('0.5.0');
+    expect(manifest.version).toBe('0.6.0');
+    expect(changelog).toContain('## 0.6.0 - 2026-07-27');
     expect(changelog).toContain('## 0.5.0 - 2026-07-16');
     expect(changelog).toContain('## 0.4.0 - 2026-07-15');
     expect(changelog).toContain('## 0.3.0 - 2026-07-15');

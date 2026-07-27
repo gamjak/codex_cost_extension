@@ -37,7 +37,39 @@ class SessionAggregatorTest {
     assertEquals(1, report.summary.sessionsCount)
     assertEquals(1_500_000, report.summary.totalTokens)
     assertEquals(3.0, report.summary.estimatedCost!!, 1e-12)
+    assertEquals(listOf("session-1"), report.sessions.map { it.sessionId })
+    assertEquals(listOf("gpt-5.6"), report.models.map { it.model })
+    assertEquals(1_500_000, report.models.single().totalTokens)
     assertEquals(BudgetState.ERROR, report.budget.state)
     assertEquals(3.0, report.budget.spentCost!!, 1e-12)
+  }
+
+  @Test
+  fun `normalizes known Codex sources`() {
+    assertEquals("vscode", normalizeSource("VSCode", null))
+    assertEquals("cli", normalizeSource(null, "codex_cli_rs"))
+    assertEquals("desktop", normalizeSource("Codex Desktop", null))
+  }
+
+  @Test
+  fun `applies inclusive report date bounds without changing calendar budget bounds`() {
+    val session = ParsedSession(
+      sessionId = "range",
+      filePath = "/logs/range.jsonl",
+      updatedAt = clock.instant(),
+      usageHistory = listOf(
+        SessionUsage(Instant.parse("2026-07-24T12:00:00Z"), TokenUsage(1, 0, 0, 1), "/project", "gpt-5.6"),
+        SessionUsage(Instant.parse("2026-07-25T12:00:00Z"), TokenUsage(2, 0, 0, 2), "/project", "gpt-5.6")
+      )
+    )
+    val report = buildUsageReport(
+      listOf(session),
+      mapOf("gpt-5.6" to ModelPricing(1.0, 1.0, 1.0)),
+      ReportOptions(
+        ViewScope.ALL, emptyList(), BudgetSettings(0.0, 0.0, 0.0, 80.0),
+        BudgetPeriod.DAY, clock, startAt = Instant.parse("2026-07-25T00:00:00Z")
+      )
+    )
+    assertEquals(1, report.summary.totalTokens)
   }
 }

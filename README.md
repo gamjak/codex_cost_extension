@@ -116,6 +116,26 @@ Run **Codex Cost: Open Cost Control** for a compact action menu, or **Codex Cost
 1. In VS Code, choose **Extensions: Install from VSIX...** from the Command Palette.
 2. Select the Codex Cost `.vsix` file you received.
 
+## IntelliJ IDEA plugin
+
+Codex Cost is also available as a native IntelliJ IDEA plugin for Community and
+Ultimate 2024.2 or newer. It reads the same local Codex JSONL sessions and does
+not require the VS Code extension, Node.js, authentication, or a network
+connection.
+
+The IDEA status bar permanently shows independently configurable current
+session, current project, and selected budget estimates. Select any Codex Cost
+widget or open **View → Tool Windows → Codex Cost** for Overview, Sessions,
+Projects, and Models. Configure roots, refresh, budgets, notifications, and
+widget visibility under **Settings → Tools → Codex Cost**.
+
+To install a local build:
+
+1. Run `cd intellij && ./gradlew buildPlugin`.
+2. In IDEA, open **Settings → Plugins**, select the gear menu, then
+   **Install Plugin from Disk…**.
+3. Select `intellij/build/distributions/codex-cost-intellij-0.6.0.zip`.
+
 ## Privacy and data access
 
 - Session logs are read locally and are never uploaded by this extension.

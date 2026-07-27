@@ -2,12 +2,14 @@ package com.gamjak.codexcost.statusbar
 
 import com.gamjak.codexcost.integration.CodexCostProjectService
 import com.gamjak.codexcost.integration.CostSnapshot
+import com.gamjak.codexcost.settings.CodexCostSettings
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.StatusBar
 import com.intellij.openapi.wm.StatusBarWidget
 import com.intellij.openapi.wm.StatusBarWidgetFactory
+import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.util.Consumer
 import java.awt.event.MouseEvent
 
@@ -35,7 +37,9 @@ private class CostWidget(private val project: Project, private val kind: WidgetK
       WidgetKind.BUDGET -> snapshot?.report?.budget?.let { "Budget ${money(it.spentCost)}/${money(it.budgetAmount)}" } ?: "Budget —"
     }
     override fun getTooltipText(): String = "Codex Cost local estimate"
-    override fun getClickConsumer(): Consumer<MouseEvent>? = null
+    override fun getClickConsumer(): Consumer<MouseEvent> = Consumer {
+      ToolWindowManager.getInstance(project).getToolWindow("Codex Cost")?.show()
+    }
     override fun getAlignment(): Float = 0f
   }
 }
@@ -43,7 +47,14 @@ private class CostWidget(private val project: Project, private val kind: WidgetK
 abstract class BaseFactory(private val kind: WidgetKind) : StatusBarWidgetFactory {
   override fun getId(): String = kind.id
   override fun getDisplayName(): String = "Codex Cost ${kind.label}"
-  override fun isAvailable(project: Project): Boolean = true
+  override fun isAvailable(project: Project): Boolean {
+    val state = service<CodexCostSettings>().state
+    return when (kind) {
+      WidgetKind.SESSION -> state.showSession
+      WidgetKind.PROJECT -> state.showProject
+      WidgetKind.BUDGET -> state.showBudget
+    }
+  }
   override fun canBeEnabledOn(statusBar: StatusBar): Boolean = true
   override fun createWidget(project: Project): StatusBarWidget = CostWidget(project, kind)
   override fun disposeWidget(widget: StatusBarWidget) { (widget as? Disposable)?.dispose() }
