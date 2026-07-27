@@ -1,0 +1,29 @@
+<idea-plugin>
+  <id>com.gamjak.codexcost</id>
+  <name>Codex Cost</name>
+  <vendor email="gambkej@gmx.net" url="https://github.com/gamjak/codex_cost_extension">gamjak</vendor>
+  <depends>com.intellij.modules.platform</depends>
+  <resource-bundle>messages.CodexCostBundle</resource-bundle>
+
+  <description><![CDATA[Codex Cost reads local Codex session logs and continuously shows private token-usage and cost estimates in IntelliJ IDEA. It provides persistent session, project, and budget status-bar widgets plus detailed local reports without sending data to a remote service.]]></description>
+
+  <extensions defaultExtensionNs="com.intellij">
+    <statusBarWidgetFactory id="CodexCost.Session" implementation="com.gamjak.codexcost.statusbar.SessionCostWidgetFactory"/>
+    <statusBarWidgetFactory id="CodexCost.Project" implementation="com.gamjak.codexcost.statusbar.ProjectCostWidgetFactory"/>
+    <statusBarWidgetFactory id="CodexCost.Budget" implementation="com.gamjak.codexcost.statusbar.BudgetCostWidgetFactory"/>
+    <toolWindow id="Codex Cost" anchor="right" factoryClass="com.gamjak.codexcost.toolwindow.CodexCostToolWindowFactory"/>
+    <notificationGroup id="Codex Cost Budget" displayType="BALLOON" isLogByDefault="true"/>
+    <applicationConfigurable id="com.gamjak.codexcost.settings" displayName="Codex Cost"
+                             instance="com.gamjak.codexcost.settings.CodexCostConfigurable"/>
+  </extensions>
+  <actions>
+    <action id="CodexCost.Refresh" class="com.gamjak.codexcost.actions.RefreshCostAction"
+            text="Codex Cost: Refresh"/>
+    <action id="CodexCost.ConfigureDailyBudget" class="com.gamjak.codexcost.actions.ConfigureDailyBudgetAction"
+            text="Codex Cost: Configure Daily Budget"/>
+    <action id="CodexCost.CopySummary" class="com.gamjak.codexcost.actions.CopyCostSummaryAction"
+            text="Codex Cost: Copy Cost Summary"/>
+    <action id="CodexCost.Settings" class="com.gamjak.codexcost.actions.OpenCostSettingsAction"
+            text="Codex Cost: Settings"/>
+  </actions>
+</idea-plugin>

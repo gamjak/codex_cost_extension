@@ -6,6 +6,14 @@ All notable changes to Codex Cost are documented here.
 
 - Improved large-log refresh performance by combining discovery metadata, reusing unchanged sessions, and parsing safe JSONL appends incrementally.
 
+## 0.6.0 - 2026-07-27
+
+- Add a native IntelliJ IDEA plugin for Community and Ultimate editions.
+- Show current session, project, and budget estimates permanently in the IDEA status bar.
+- Add a native Codex Cost tool window with overview, session, project, and model analysis.
+- Add IDEA settings, refresh, budget, clipboard, and local budget-notification actions.
+- Build and verify the IntelliJ plugin alongside the existing VS Code extension.
+
 ## 0.5.0 - 2026-07-16
 
 - Unify workspace and all-session analysis in the Cost Center, available from the status bar, sidebar, and Command Palette.

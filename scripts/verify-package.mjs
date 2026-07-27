@@ -27,6 +27,7 @@ const forbiddenPrefixes = [
   'extension/.vscode/',
   'extension/out/vitest.config.',
   'extension/docs/',
+  'extension/intellij/',
   'extension/work/',
   'extension/.superpowers/'
 ];
